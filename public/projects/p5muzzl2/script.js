@@ -162,18 +162,16 @@ function pulseMath() {
 function tankSpawn(tankVar) {
 	if (tankVar.aimControl === "mouse") {
 		tankVar.turretRotateCopy = atan2(mouseX-tankVar.x,mouseY-tankVar.y);
-		Math.round(tankVar.turretRotateCopy);
 		if (tankVar.turretRotate != tankVar.turretRotateCopy) {
-			if (tankVar.turretRotate < tankVar.turretRotateCopy) {
+			if (tankVar.turretRotate <= tankVar.turretRotateCopy) {
 				tankVar.turretRotate += 1;
 			}
-			if (tankVar.turretRotate > tankVar.turretRotateCopy) {
+			if (tankVar.turretRotate >= tankVar.turretRotateCopy) {
 				tankVar.turretRotate -= 1;
 			}
 		}
 	} else {
 		tankVar.turretRotateCopy = atan2(keyX-tankVar.x,keyY-tankVar.y);
-		Math.round(tankVar.turretRotateCopy);
 		if (tankVar.turretRotate != tankVar.turretRotateCopy) {
 			if (tankVar.turretRotate < tankVar.turretRotateCopy) {
 				tankVar.turretRotate += 1;
@@ -331,7 +329,8 @@ function tankSpawn(tankVar) {
 
     fill(255,0,0);
     push();
-    translate(0, 0);
+	fill(255, 0, 0);
+	rect(50, 50, aWindowWidth/2, windowHeight/2 + 100, 20)
     fill(255);
     textSize(20);
     text("Level", aWindowWidth/2, windowHeight/2 - 100);
@@ -465,30 +464,31 @@ function intro() {
 
 function level1() {
 	background(-pulse.var, pulse.var - 25, pulse.var + 200);
-  push();
+  	push();
 	translate(viewport.x, viewport.y);
 	fill(255, 245, 190);
-  rect(aWindowWidth/2, windowHeight/2, 1000, 1000, 20);
-  fill(52, 140, 49);
-  rect(aWindowWidth/2, windowHeight/2, 900, 900, 20);
-  fill(100, 100, 100);
-  message(0, 250, 850, 350, 20, aTank);
-  fill(255);
-  textSize(30);
-  text("Welcome to Muzzl!\nThis game is a top down 'shooter' where you liberate\nislands as apart of your military campaign.\nTo start, use WASD to move around.\nTransparency on your tank usually represents your\ndamage, but it also happens when above a message.\nMove up the island to the next area.", aWindowWidth/2, windowHeight/2 + 250);
-	if (aTank.firing) {
-		for (let i = 0; i < bullets.length; i++) {
-			bullets[i].draw();
-		} 
-	}
-	pop();
-  tankSpawn(aTank);
-	
-	if (fade.intro > 0) {
-		fill(0, 0, 0, fade.intro);
-		rect(aWindowWidth/2, windowHeight/2, aWindowWidth, windowHeight);
-		fade.intro -= 2.5;
-	}
+	rect(aWindowWidth/2, windowHeight/2, 1000, 1000, 20);
+	fill(52, 140, 49);
+	rect(aWindowWidth/2, windowHeight/2, 900, 900, 20);
+	fill(100, 100, 100);
+	message(0, 250, 850, 350, 20, aTank);
+	fill(255);
+	textSize(30);
+	text("Welcome to Muzzl!\nThis game is a top down 'shooter' where you liberate\nislands as apart of your military campaign.\nTo start, use WASD to move around.\nTransparency on your tank usually represents your\ndamage, but it also happens when above a message.\nMove up the island to the next area.", aWindowWidth/2, windowHeight/2 + 250);
+		if (aTank.firing) {
+			for (let i = 0; i < bullets.length; i++) {
+					bullets[i].draw();
+			} 
+		}
+		pop();
+	tankSpawn(aTank);
+
+		
+		if (fade.intro > 0) {
+			fill(0, 0, 0, fade.intro);
+			rect(aWindowWidth/2, windowHeight/2, aWindowWidth, windowHeight);
+			fade.intro -= 2.5;
+		}
 }
 
 function debug() {
