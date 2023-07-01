@@ -115,9 +115,7 @@ function message(offsetX, offsetY, width, height, curve, tankVar) {
 
 
 function setup() {
-  aWindowWidth = Math.floor(windowHeight * (16/9));
-  preAWindowWidth = aWindowWidth;
-  preWindowHeight = windowHeight;
+	windowResized();
 	//var canvas = createCanvas(1366, 768);
 	var canvas = createCanvas(aWindowWidth, windowHeight);
 	canvas.style('margin', 'auto');
@@ -133,16 +131,6 @@ function setup() {
 	for (var i = 0; i < privacyBanner.length; i++) {
 		privacyBanner[i].parentNode.removeChild(privacyBanner[i]);
 	}
-
-	aTank.x = Math.floor(aWindowWidth/2);
-	aTank.y = Math.floor(windowHeight/2);
-  aTank.bulletX = (aWindowWidth/2) - viewport.x;
-  aTank.bulletY = (windowHeight/2) - viewport.y;
-  viewport.x *= (preAWindowWidth/aWindowWidth);
-  viewport.y *= (preWindowHeight/windowHeight);
-  
-  translateCenter.x = (aWindowWidth - 1366)/2;
-  translateCenter.y = (windowHeight - 768)/2;
 }
 
 function keyPressed() {
@@ -522,18 +510,19 @@ function debug() {
 }
 
 function windowResized() {
-  aWindowWidth = Math.floor(windowHeight * (16/9));
-  //resizeCanvas(1366, 768);
-  resizeCanvas(aWindowWidth, windowHeight);
-  viewport.x *= (preAWindowWidth/aWindowWidth);
-  viewport.y *= (preWindowHeight/windowHeight);
-	aTank.x = aWindowWidth/2;
-	aTank.y = windowHeight/2;
-  translateCenter.x = (aWindowWidth - 1366)/2;
-  translateCenter.y = (windowHeight - 768)/2;
-  preAWindowWidth = aWindowWidth;
-  preWindowHeight = windowHeight;
-}
+	aWindowWidth = Math.floor(windowHeight * (16/9));
+	preAWindowWidth = aWindowWidth;
+	preWindowHeight = windowHeight;
+	aTank.x = Math.floor(aWindowWidth/2);
+	aTank.y = Math.floor(windowHeight/2);
+	aTank.bulletX = (aWindowWidth/2) - viewport.x;
+	aTank.bulletY = (windowHeight/2) - viewport.y;
+	viewport.x *= (preAWindowWidth/aWindowWidth);
+	viewport.y *= (preWindowHeight/windowHeight);
+	translateCenter.x = (aWindowWidth - 1366)/2;
+	translateCenter.y = (windowHeight - 768)/2;
+	resizeCanvas(aWindowWidth, windowHeight);
+  }
 
 function draw() {
   if (stage == 1) {
