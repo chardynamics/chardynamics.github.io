@@ -6,9 +6,10 @@ var preAWindowWidth;
 var preWindowHeight;
 
 var translateCenter = {
-  x: 0,
-  y: 0
+	x: 0,
+	y: 0
 }
+var speedDecay = 0.05;
 
 var stage = 2;
 
@@ -35,34 +36,36 @@ var fade = {
 	out: 0
 }
 
+
+
 var aTank = {
-  x:600,
-  y:600,
-  bulletX: 600,
-  bulletY: 600,
-  speed: 0,
-  acceleration: 0.75,
-  rotate: 90,
-  turretRotateCopy: 0,
-  turretRotate: 0,
-  rightW: false,
-  leftW: false,
-  control: "wasd",
-  aimControl: "mouse",
-  firing: true,
-  speedMultipler: 0.75,
-  speedCost: 200,
-  speedLevel: 1,
-  reloadRate: 5,
-  reloadMax: 60,
-  reloadVar: 100,
-  type: 1,
-  deaths: 0,
-  armor: 100,
-  armorMax: 100,
-  armorLevel: 1,
-  armorCost: 200,
-  hotCircleSize: 0
+	x:600,
+	y:600,
+	bulletX: 600,
+	bulletY: 600,
+	speed: 0,
+	acceleration: 0.75,
+	rotate: 90,
+	turretRotateCopy: 0,
+	turretRotate: 0,
+	rightW: false,
+	leftW: false,
+	control: "wasd",
+	aimControl: "mouse",
+	firing: true,
+	speedMultipler: 0.75,
+	speedCost: 200,
+	speedLevel: 1,
+	reloadRate: 5,
+	reloadMax: 60,
+	reloadVar: 100,
+	type: 1,
+	deaths: 0,
+	armor: 100,
+	armorMax: 100,
+	armorLevel: 1,
+	armorCost: 200,
+	hotCircleSize: 0
 };
 
 var tankHover = false;
@@ -71,13 +74,13 @@ var keys = [];
 var bullets = [];
 
 var keyAim = {
-  x: 0,
-  y: 0
+	x: 0,
+	y: 0
 }
 
 var viewport = {
-  x: 0,
-  y: -350
+	x: 0,
+	y: -350
 }
 
 function bullet(x, y) {
@@ -105,12 +108,12 @@ bullet.prototype.draw = function() {
 };
 
 function message(offsetX, offsetY, width, height, curve, tankVar) {
-  rect(aWindowWidth/2 + offsetX, windowHeight/2 + offsetY, width, height, curve);
-  if ((viewport.x < (offsetX + width/2)) && (viewport.x > (offsetX -width/2)) && (viewport.y > -offsetY + -(height/2)) && (viewport.y < -offsetY + (height/2))) {
-    tankVar.armor = 50;
-  } else {
-    tankVar.armor = 100;
-  }
+	rect(aWindowWidth/2 + offsetX, windowHeight/2 + offsetY, width, height, curve);
+	if ((viewport.x < (offsetX + width/2)) && (viewport.x > (offsetX -width/2)) && (viewport.y > -offsetY + -(height/2)) && (viewport.y < -offsetY + (height/2))) {
+		tankVar.armor = 50;
+	} else {
+		tankVar.armor = 100;
+	}
 }
 
 
@@ -124,7 +127,7 @@ function setup() {
 	rectMode(CENTER);
 	textAlign(CENTER, CENTER);
 	angleMode(DEGREES);
-  textStyle(BOLD);
+	textStyle(BOLD);
 	noStroke();
 	
 	var privacyBanner = document.querySelectorAll("[data-gg-privacy-banner-anchor]");
@@ -150,25 +153,41 @@ function pulseMath() {
 function tankSpawn(tankVar) {
 	if (tankVar.aimControl === "mouse") {
 		tankVar.turretRotateCopy = atan2(mouseX-tankVar.x,mouseY-tankVar.y);
-		var shortestAngle = tankVar.turretRotateCopy - tankVar.turretRotate;
-		shortestAngle -= Math.floor((shortestAngle + 180) / 360) * 360; // Ensure the angle is between -180 and 180
-		var rotationStep = 1; // Adjust the rotation speed as needed
-
-		if (shortestAngle < 0) {
-  			tankVar.turretRotate -= rotationStep;
-		} else if (shortestAngle > 0) {
-  			tankVar.turretRotate += rotationStep;
+		if (Math.round(tankVar.turretRotateCopy) !== Math.round(tankVar.turretRotate)) {
+			var shortestAngle = tankVar.turretRotateCopy - tankVar.turretRotate;
+			shortestAngle -= Math.floor((shortestAngle + 180) / 360) * 360; // Ensure the angle is between -180 and 180
+			var rotationStep = 1; // Adjust the rotation speed as needed
+		
+			if (shortestAngle < 0) {
+			tankVar.turretRotate -= rotationStep;
+			} else if (shortestAngle > 0) {
+			tankVar.turretRotate += rotationStep;
+			}
+		
+			if (tankVar.turretRotate < -180) {
+			tankVar.turretRotate += 360;
+			} else if (tankVar.turretRotate > 180) {
+			tankVar.turretRotate -= 360;
+			}
 		}
 	} else {
 		tankVar.turretRotateCopy = atan2(keyX-tankVar.x,keyY-tankVar.y);
-		var shortestAngle = tankVar.turretRotateCopy - tankVar.turretRotate;
-		shortestAngle -= Math.floor((shortestAngle + 180) / 360) * 360; // Ensure the angle is between -180 and 180
-		var rotationStep = 1; // Adjust the rotation speed as needed
-
-		if (shortestAngle < 0) {
-  			tankVar.turretRotate -= rotationStep;
-		} else if (shortestAngle > 0) {
-  			tankVar.turretRotate += rotationStep;
+		if (Math.round(tankVar.turretRotateCopy) !== Math.round(tankVar.turretRotate)) {
+			var shortestAngle = tankVar.turretRotateCopy - tankVar.turretRotate;
+			shortestAngle -= Math.floor((shortestAngle + 180) / 360) * 360; // Ensure the angle is between -180 and 180
+			var rotationStep = 1; // Adjust the rotation speed as needed
+		
+			if (shortestAngle < 0) {
+			tankVar.turretRotate -= rotationStep;
+			} else if (shortestAngle > 0) {
+			tankVar.turretRotate += rotationStep;
+			}
+		
+			if (tankVar.turretRotate < -180) {
+			tankVar.turretRotate += 360;
+			} else if (tankVar.turretRotate > 180) {
+			tankVar.turretRotate -= 360;
+			}
 		}
 		if(keys[84]) {
 			if(keyAim.y > 0) {
@@ -194,24 +213,6 @@ function tankSpawn(tankVar) {
 		rect(keyAim.x, keyAim.y, 5, 25);
 		rect(keyAim.x, keyAim.y, 25, 5);
 	}
-
-	let turretRotateDiff = tankVar.turretRotateCopy - tankVar.turretRotate;
-
-	// Check if the difference is larger than 180 degrees
-	if (turretRotateDiff > 180) {
-		// Update the turret rotation in the opposite direction
-		tankVar.turretRotate -= 1;
-	} else if (turretRotateDiff < -180) {
-		// Update the turret rotation in the opposite direction
-		tankVar.turretRotate += 1;
-	} else {
-		// Update the turret rotation in the regular direction
-		if (tankVar.turretRotate < tankVar.turretRotateCopy) {
-			tankVar.turretRotate += 1;
-		} else if (tankVar.turretRotate > tankVar.turretRotateCopy) {
-			tankVar.turretRotate -= 1;
-		}
-	}
 	
 	if(!paused){
 		if (tankVar.control == "wasd") {
@@ -236,7 +237,7 @@ function tankSpawn(tankVar) {
 					}
 				}
 				if(keys[83]) {
-					if(tankVar.speed > (-1.5 * tankVar.speedMultipler)) {
+					if(tankVar.speed > (-3 * tankVar.speedMultipler)) {
 						tankVar.speed -= tankVar.acceleration * tankVar.speedMultipler;
 					}
 				}
@@ -247,11 +248,11 @@ function tankSpawn(tankVar) {
 				}
 			}
 			if((!keys[87]) && (!keys[83])) {
-				if(tankVar.speed >= (0 * tankVar.speedMultipler)) {
-					tankVar.speed -= 0.05 * tankVar.speedMultipler;
+				if (Math.abs(tankVar.speed) <= speedDecay) {
+					tankVar.speed = 0;
 				} else {
-					tankVar.speed += 0.05 * tankVar.speedMultipler;
-				}
+					tankVar.speed -= Math.sign(tankVar.speed) * speedDecay;
+				}				  
 			}
 		} else {
 			if (keyIsPressed) {
@@ -275,16 +276,16 @@ function tankSpawn(tankVar) {
 					}
 				}
 				if(keys[40]) {
-					if(tankVar.speed >= (-1.5 * tankVar.speedMultipler)) {
+					if(tankVar.speed >= (-3 * tankVar.speedMultipler)) {
 						tankVar.speed -= tankVar.acceleration * tankVar.speedMultipler;
 					}
 				}
 				if(!keys[38] && !keys[40]) {
-					if(tankVar.speed >= 0) {
-						tankVar.speed -= 0.05 * tankVar.speedMultipler;
-					} else if (tankVar.speed <= 0) {
-						tankVar.speed += 0.05 * tankVar.speedMultipler;
-					}
+					if (Math.abs(tankVar.speed) <= speedDecay) {
+						tankVar.speed = 0;
+					} else {
+						tankVar.speed -= Math.sign(tankVar.speed) * speedDecay;
+					}					  
 				}
 				if(tankVar.speed === (3 * tankVar.speedMultipler)) {
 					tankVar.speed = 3 * tankVar.speedMultipler;
@@ -294,28 +295,28 @@ function tankSpawn(tankVar) {
 			}
 		}
 	}
- 
+
 	viewport.x += (cos(tankVar.rotate) * tankVar.speed);
 	viewport.y += (sin(tankVar.rotate) * tankVar.speed);
-  
-  aTank.bulletX = (aWindowWidth/2) - viewport.x;
-  aTank.bulletY = (windowHeight/2) - viewport.y;
+
+aTank.bulletX = (aWindowWidth/2) - viewport.x;
+aTank.bulletY = (windowHeight/2) - viewport.y;
 		
 	if (tankVar.firing) {
-	   if ((!tankHover)) {
-			 if(mouseIsPressed){
-				   if(tankVar.reloadVar == 0){
+	if ((!tankHover)) {
+			if(mouseIsPressed){
+				if(tankVar.reloadVar == 0){
 						bullets.push(new bullet(tankVar.bulletX,tankVar.bulletY));
 						tankVar.reloadVar = tankVar.reloadMax;
-				   }
-			 }
-			 if(keys[32]){
-				   if(tankVar.reloadVar == 0){
+				}
+			}
+			if(keys[32]){
+				if(tankVar.reloadVar == 0){
 						bullets.push(new bullet(tankVar.bulletX,tankVar.bulletY));
 						tankVar.reloadVar = reload.max;
-				   }
-			 }
-	   }
+				}
+			}
+	}
 	}
 
 	
@@ -324,37 +325,36 @@ function tankSpawn(tankVar) {
 			tankVar.reloadVar -= tankVar.reloadRate;
 		}
 	}
-  
-  if (tankVar.armor < 0) {
-    tankVar.deaths += 1;
-    tankVar.armor = tankVar.armorMax;
-  }
-  
-  //Circle bar
-  if(keys[67]){
-    fill(0, 0, 0, 100);
-    ellipse(tankVar.x, tankVar.y, tankVar.hotCircleSize, tankVar.hotCircleSize);
 
-    fill(255,0,0);
-    push();
-    fill(255);
-    textSize(20);
-    text("Level", aWindowWidth/2, windowHeight/2 - 100);
-    textSize(30);
-    text("Tutorial", aWindowWidth/2, windowHeight/2 - 70);
-    pop();
-     
-    if (tankVar.hotCircleSize < 250) {
-      tankVar.hotCircleSize += 125;
-    }
-   } else {
-     tankVar.hotCircleSize = 0;
-   }
+	if (tankVar.armor < 0) {
+		tankVar.deaths += 1;
+		tankVar.armor = tankVar.armorMax;
+	}
 
-	//Tank skins
-  if (tankVar.type == 1) {
+	//Circle bar
+	if(keys[67]){
+		fill(0, 0, 0, 100);
+		ellipse(tankVar.x, tankVar.y, tankVar.hotCircleSize, tankVar.hotCircleSize);
+
+		fill(255,0,0);
+		push();
+		fill(255);
+		textSize(20);
+		text("Level", aWindowWidth/2, windowHeight/2 - 100);
+		textSize(30);
+		text("Tutorial", aWindowWidth/2, windowHeight/2 - 70);
+		pop();
+		
+		if (tankVar.hotCircleSize < 250) {
+			tankVar.hotCircleSize += 125;
+		}
+		} else {
+		tankVar.hotCircleSize = 0;
+		}
+
+		//Tank skins
+	if (tankVar.type == 1) {
 		noStroke();
-    
 		push();
 		translate(tankVar.x, tankVar.y);
 		rotate(tankVar.rotate+90);
@@ -372,7 +372,7 @@ function tankSpawn(tankVar) {
 		rect(0,0,37.5,37.5,12.5);
 		rect(0,-40,12.5,50 ,0);
 		pop();
-  }
+	}
 };
 
 function intro() {
@@ -386,7 +386,7 @@ function intro() {
 		introVar.turretRotate = introVar.tankRotate;
 	}
 	if (introVar.tankRotate == 25 && introVar.turretRotate < 90) {
-        introVar.turretRotate += 1;
+		introVar.turretRotate += 1;
 	}
 	if (introVar.turretRotate == 90) {
 		if (introVar.bulletX <= 1525) {
@@ -405,8 +405,8 @@ function intro() {
 	}
 	
 	background(0);
-  push();
-  translate(translateCenter.x, translateCenter.y);
+	push();
+	translate(translateCenter.x, translateCenter.y);
 	fill(255, 255, 255);
 	textSize(800); //I'm just using this as a general scale/ratio factor, although it only works with appropriate ratios
 	text("DP", 675, 350.5);
@@ -451,7 +451,7 @@ function intro() {
 	rect(0,0,15,15,5);
 	rect(0,-20,5,25,0);
 	pop();
-  pop();
+	pop();
 	
 	if (fade.intro > 0) {
 		fill(0, 0, 0, fade.intro);
@@ -470,7 +470,7 @@ function intro() {
 
 function level1() {
 	background(-pulse.var, pulse.var - 25, pulse.var + 200);
-  	push();
+	push();
 	translate(viewport.x, viewport.y);
 	fill(255, 245, 190);
 	rect(aWindowWidth/2, windowHeight/2, 1000, 1000, 20);
@@ -481,50 +481,50 @@ function level1() {
 	fill(255);
 	textSize(30);
 	text("Welcome to Muzzl!\nThis game is a top down 'shooter' where you liberate\nislands as apart of your military campaign.\nTo start, use WASD to move around.\nTransparency on your tank usually represents your\ndamage, but it also happens when above a message.\nMove up the island to the next area.", aWindowWidth/2, windowHeight/2 + 250);
-		if (aTank.firing) {
-			for (let i = 0; i < bullets.length; i++) {
-					bullets[i].draw();
-			} 
-		}
-		pop();
+	if (aTank.firing) {
+		for (let i = 0; i < bullets.length; i++) {
+				bullets[i].draw();
+		} 
+	}
+	pop();
 	tankSpawn(aTank);
 
 		
-		if (fade.intro > 0) {
-			fill(0, 0, 0, fade.intro);
-			rect(aWindowWidth/2, windowHeight/2, aWindowWidth, windowHeight);
-			fade.intro -= 2.5;
-		}
+	if (fade.intro > 0) {
+		fill(0, 0, 0, fade.intro);
+		rect(aWindowWidth/2, windowHeight/2, aWindowWidth, windowHeight);
+		fade.intro -= 2.5;
+	}
 }
 
 function debug() {
 	fill(255, 0, 0);
 	textSize(25);
-	text(aWindowWidth, mouseX + 125, mouseY);
-	text(windowHeight, mouseX + 125, mouseY + 20);
-	text(850/2, mouseX + 125, mouseY + 45);
-	text(aWindowWidth, mouseX + 125, mouseY + 60);
-  
-  if (keyIsPressed) {
-    if(keys[73]) {
-      viewport.y += 5;
-    }
-    if(keys[74]) {
-      viewport.x += 5;
-    }
-    if(keys[75]) {
-      viewport.y -= 5;
-    }
-    if(keys[76]) {
-      viewport.x -= 5;
-    }
-    if(keys[89]) {
-      aTank.armor += 5;
-    }
-    if(keys[72]) {
-      aTank.armor -= 5;
-    }
-  }
+	text(viewport.x, mouseX + 125, mouseY);
+	text(viewport.y, mouseX + 125, mouseY + 20);
+	text(aTank.speed, mouseX + 125, mouseY + 45);
+	text(aTank.turretRotateCopy, mouseX + 125, mouseY + 60);
+
+	if (keyIsPressed) {
+		if(keys[73]) {
+			viewport.y += 5;
+		}
+		if(keys[74]) {
+			viewport.x += 5;
+		}
+		if(keys[75]) {
+			viewport.y -= 5;
+		}
+		if(keys[76]) {
+			viewport.x -= 5;
+		}
+		if(keys[89]) {
+			aTank.armor += 5;
+		}
+		if(keys[72]) {
+			aTank.armor -= 5;
+		}
+	}
 }
 
 function windowResized() {
@@ -540,14 +540,14 @@ function windowResized() {
 	translateCenter.x = (aWindowWidth - 1366)/2;
 	translateCenter.y = (windowHeight - 768)/2;
 	resizeCanvas(aWindowWidth, windowHeight);
-  }
+}
 
 function draw() {
-  if (stage == 1) {
-    intro();
-  } else if (stage == 2) {
-    level1();
-  }
-  pulseMath();
-  debug();
+	if (stage == 1) {
+		intro();
+	} else if (stage == 2) {
+		level1();
+	}
+	pulseMath();
+	debug();
 }  
