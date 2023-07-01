@@ -150,23 +150,25 @@ function pulseMath() {
 function tankSpawn(tankVar) {
 	if (tankVar.aimControl === "mouse") {
 		tankVar.turretRotateCopy = atan2(mouseX-tankVar.x,mouseY-tankVar.y);
-		if (tankVar.turretRotate != tankVar.turretRotateCopy) {
-			if (tankVar.turretRotate <= tankVar.turretRotateCopy) {
-				tankVar.turretRotate += 1;
-			}
-			if (tankVar.turretRotate >= tankVar.turretRotateCopy) {
-				tankVar.turretRotate -= 1;
-			}
+		var shortestAngle = tankVar.turretRotateCopy - tankVar.turretRotate;
+		shortestAngle -= Math.floor((shortestAngle + 180) / 360) * 360; // Ensure the angle is between -180 and 180
+		var rotationStep = 1; // Adjust the rotation speed as needed
+
+		if (shortestAngle < 0) {
+  			tankVar.turretRotate -= rotationStep;
+		} else if (shortestAngle > 0) {
+  			tankVar.turretRotate += rotationStep;
 		}
 	} else {
 		tankVar.turretRotateCopy = atan2(keyX-tankVar.x,keyY-tankVar.y);
-		if (tankVar.turretRotate != tankVar.turretRotateCopy) {
-			if (tankVar.turretRotate < tankVar.turretRotateCopy) {
-				tankVar.turretRotate += 1;
-			}
-			if (tankVar.turretRotate > tankVar.turretRotateCopy) {
-				tankVar.turretRotate -= 1;
-			}
+		var shortestAngle = tankVar.turretRotateCopy - tankVar.turretRotate;
+		shortestAngle -= Math.floor((shortestAngle + 180) / 360) * 360; // Ensure the angle is between -180 and 180
+		var rotationStep = 1; // Adjust the rotation speed as needed
+
+		if (shortestAngle < 0) {
+  			tankVar.turretRotate -= rotationStep;
+		} else if (shortestAngle > 0) {
+  			tankVar.turretRotate += rotationStep;
 		}
 		if(keys[84]) {
 			if(keyAim.y > 0) {
@@ -191,6 +193,24 @@ function tankSpawn(tankVar) {
 		fill(0);
 		rect(keyAim.x, keyAim.y, 5, 25);
 		rect(keyAim.x, keyAim.y, 25, 5);
+	}
+
+	let turretRotateDiff = tankVar.turretRotateCopy - tankVar.turretRotate;
+
+	// Check if the difference is larger than 180 degrees
+	if (turretRotateDiff > 180) {
+		// Update the turret rotation in the opposite direction
+		tankVar.turretRotate -= 1;
+	} else if (turretRotateDiff < -180) {
+		// Update the turret rotation in the opposite direction
+		tankVar.turretRotate += 1;
+	} else {
+		// Update the turret rotation in the regular direction
+		if (tankVar.turretRotate < tankVar.turretRotateCopy) {
+			tankVar.turretRotate += 1;
+		} else if (tankVar.turretRotate > tankVar.turretRotateCopy) {
+			tankVar.turretRotate -= 1;
+		}
 	}
 	
 	if(!paused){
@@ -317,8 +337,6 @@ function tankSpawn(tankVar) {
 
     fill(255,0,0);
     push();
-	fill(255, 0, 0);
-	rect(50, 50, aWindowWidth/2, windowHeight/2 + 100, 20)
     fill(255);
     textSize(20);
     text("Level", aWindowWidth/2, windowHeight/2 - 100);
