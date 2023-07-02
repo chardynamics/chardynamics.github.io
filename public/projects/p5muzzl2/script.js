@@ -358,6 +358,8 @@ aTank.bulletY = (windowHeight/2) - viewport.y;
 		push();
 		translate(tankVar.x, tankVar.y);
 		rotate(tankVar.rotate+90);
+		//fill(0, 0, 0, 245);
+		//rect(0, -500, 2000, -1000);
 		fill(50, 50, 50, 255 * (tankVar.armor/tankVar.armorMax));
 		rect(-30,0,12.5,87.5,12.5);
 		rect(30,0,12.5,87.5,12.5);
