@@ -36,7 +36,45 @@ var fade = {
 	out: 0
 }
 
-
+var aEnemy = {
+	x:600,
+	y:600,
+	bulletX: 600,
+	bulletY: 600,
+	speed: 0,
+	acceleration: 0.75,
+	rotate: 2,
+	turretRotateCopy: 0,
+	turretRotate: 0,
+	rightW: false,
+	leftW: false,
+	control: "wasd",
+	aimControl: "mouse",
+	firing: true,
+	speedMultipler: 0.75,
+	speedCost: 200,
+	speedLevel: 1,
+	reloadRate: 5,
+	reloadMax: 60,
+	reloadVar: 100,
+	type: 1,
+	deaths: 0,
+	armor: 100,
+	armorMax: 100,
+	armorLevel: 1,
+	armorCost: 200,
+	friendly: false,
+	randomMovement: true,
+	hotCircleSize: 0,
+	cornerx1: -100,
+	cornery1: 100,
+	cornerx2: 100,
+	cornery2: 100,
+	cornerx3: -100,
+	cornery3: -100,
+	cornerx4: 100,
+	cornery4: -100
+};
 
 var aTank = {
 	x:600,
@@ -104,6 +142,9 @@ bullet.prototype.draw = function() {
 		pop();
 		this.x += cos(this.rotate) * 25;
 		this.y += sin(this.rotate) * 25;
+		aEnemy.bulletX += cos(aEnemy.turretRotate) * 25;
+		aEnemy.bulletY += sin(aEnemy.turretRotate) * 25;
+
 	}
 };
 
@@ -149,6 +190,231 @@ function pulseMath() {
 	if(pulse.var<125){pulse.rate = -1;}
 	if(pulse.var>225){pulse.rate = 1;}
 }
+
+function enemySpawn(enemyVar) {
+	if(enemyVar.friendly) {
+		if (enemyVar.aimControl === "bot") { //work on once you have an enemy array
+			enemyVar.turretRotateCopy = atan2(enemyVar.x-enemyVar.x,enemyVar.y-enemyVar.y);
+			if (Math.round(enemyVar.turretRotateCopy) !== Math.round(enemyVar.turretRotate)) {
+				var shortestAngle = enemyVar.turretRotateCopy - enemyVar.turretRotate;
+				shortestAngle -= Math.floor((shortestAngle + 180) / 360) * 360; // Ensure the angle is between -180 and 180
+				var rotationStep = 1; // Adjust the rotation speed as needed
+			
+				if (shortestAngle < 0) {
+					enemyVar.turretRotate -= rotationStep;
+				} else if (shortestAngle > 0) {
+					enemyVar.turretRotate += rotationStep;
+				}
+			
+				if (enemyVar.turretRotate < -180) {
+					enemyVar.turretRotate += 360;
+				} else if (enemyVar.turretRotate > 180) {
+					enemyVar.turretRotate -= 360;
+				}
+			}
+		} else {
+			enemyVar.turretRotateCopy = atan2(keyX-enemyVar.x,keyY-enemyVar.y);
+			if (Math.round(enemyVar.turretRotateCopy) !== Math.round(enemyVar.turretRotate)) {
+				var shortestAngle = enemyVar.turretRotateCopy - enemyVar.turretRotate;
+				shortestAngle -= Math.floor((shortestAngle + 180) / 360) * 360; // Ensure the angle is between -180 and 180
+				var rotationStep = 1; // Adjust the rotation speed as needed
+			
+				if (shortestAngle < 0) {
+					enemyVar.turretRotate -= rotationStep;
+				} else if (shortestAngle > 0) {
+					enemyVar.turretRotate += rotationStep;
+				}
+			
+				if (enemyVar.turretRotate < -180) {
+					enemyVar.turretRotate += 360;
+				} else if (enemyVar.turretRotate > 180) {
+					enemyVar.turretRotate -= 360;
+				}
+			}
+			if(keys[84]) {
+				if(keyAim.y > 0) {
+					keyAim.y -= 5;
+				}
+			}
+			if(keys[70]) {
+				if(keyAim.x > 0) {
+					keyAim.x -= 5;
+				}
+			}
+			if(keys[71]) {
+				if(keyAim.y < windowHeight) {
+					keyAim.y += 5;
+				}
+			}
+			if(keys[72]) {
+				if(keyAim.x < aWindowWidth) {
+					keyAim.x += 5;
+				}
+			}
+			fill(0);
+			rect(keyAim.x, keyAim.y, 5, 25);
+			rect(keyAim.x, keyAim.y, 25, 5);
+			if(!paused){
+				if (enemyVar.control == "wasd") { //DO ALTERNATE KEYBOARD LAYOUT
+					if (keyIsPressed) {
+						if(keys[37]) {
+							if(enemyVar.speed > (-2 * enemyVar.speedMultipler)) {
+								enemyVar.rotate -=3;
+								enemyVar.rightW = false;
+								enemyVar.leftW = true;
+							}
+						}
+						if(keys[39]) {
+							if(enemyVar.speed > (-2 * enemyVar.speedMultipler)) {
+								enemyVar.rotate +=3;
+								enemyVar.rightW = true;
+								enemyVar.leftW = false;
+							}
+						}
+						if(keys[38]) {
+							if(enemyVar.speed <= (3 * enemyVar.speedMultipler)) {
+								enemyVar.speed += enemyVar.acceleration * enemyVar.speedMultipler;
+							}
+						}
+						if(keys[40]) {
+							if(enemyVar.speed >= (-3 * enemyVar.speedMultipler)) {
+								enemyVar.speed -= enemyVar.acceleration * enemyVar.speedMultipler;
+							}
+						}
+						if(!keys[38] && !keys[40]) {
+							if (Math.abs(enemyVar.speed) <= speedDecay) {
+								enemyVar.speed = 0;
+							} else {
+								enemyVar.speed -= Math.sign(enemyVar.speed) * speedDecay;
+							}					  
+						}
+						if(enemyVar.speed === (3 * enemyVar.speedMultipler)) {
+							enemyVar.speed = 3 * enemyVar.speedMultipler;
+						} else if (enemyVar.speed === (-3 * enemyVar.speedMultipler)) {
+							enemyVar.speed = 3 * enemyVar.speedMultipler;
+						}
+					}
+				}
+			}
+		}
+	} else {
+		enemyVar.turretRotateCopy = atan2(viewport.x-enemyVar.x,viewport.y-enemyVar.y);
+		if (Math.round(enemyVar.turretRotateCopy) !== Math.round(enemyVar.turretRotate)) {
+			var shortestAngle = enemyVar.turretRotateCopy - enemyVar.turretRotate;
+			shortestAngle -= Math.floor((shortestAngle + 180) / 360) * 360; // Ensure the angle is between -180 and 180
+			var rotationStep = 1; // Adjust the rotation speed as needed
+		
+			if (shortestAngle < 0) {
+				enemyVar.turretRotate -= rotationStep;
+			} else if (shortestAngle > 0) {
+				enemyVar.turretRotate += rotationStep;
+			}
+		
+			if (enemyVar.turretRotate < -180) {
+				enemyVar.turretRotate += 360;
+			} else if (enemyVar.turretRotate > 180) {
+				enemyVar.turretRotate -= 360;
+			}
+		}
+		if (enemyVar.randomMovement) {
+		// Randomly fluctuate enemy's x and y within the specified corners
+		enemyVar.x += random(-1, 1);
+		enemyVar.y += random(-1, 1);
+	
+		// Ensure enemy's x and y do not surpass the corner properties
+		enemyVar.x = constrain(enemyVar.x, enemyVar.corner1x, enemyVar.corner2x);
+		enemyVar.y = constrain(enemyVar.y, enemyVar.corner1y, enemyVar.corner2y);
+		}
+	}
+	
+
+	enemyVar.x += (cos(enemyVar.rotate) * enemyVar.speed);
+	enemyVar.y += (sin(enemyVar.rotate) * enemyVar.speed);
+
+	enemyVar.bulletX = enemyVar.x;
+	enemyVar.bulletY = enemyVar.y;
+		
+	if (enemyVar.firing) {
+		if ((!tankHover)) {
+			if(mouseIsPressed){
+				if(enemyVar.reloadVar == 0){
+					bullets.push(new bullet(enemyVar.bulletX,enemyVar.bulletY));
+					enemyVar.reloadVar = enemyVar.reloadMax;
+				}
+			}
+			if(keys[32]){
+				if(enemyVar.reloadVar == 0){
+					bullets.push(new bullet(enemyVar.bulletX,enemyVar.bulletY));
+					enemyVar.reloadVar = reload.max;
+				}
+			}
+		}
+	}
+
+	
+	if (enemyVar.reloadVar > 0) {
+		if ((enemyVar.reloadVar - enemyVar.reloadRate) >= 0) {
+			enemyVar.reloadVar -= enemyVar.reloadRate;
+		}
+	}
+
+	if (enemyVar.armor < 0) {
+		enemyVar.deaths += 1;
+		enemyVar.armor = enemyVar.armorMax;
+	}
+
+	//Circle bar
+	if(keys[67]){
+		fill(0, 0, 0, 100);
+		ellipse(enemyVar.x, enemyVar.y, enemyVar.hotCircleSize, enemyVar.hotCircleSize);
+
+		fill(255,0,0);
+		push();
+		fill(255);
+		textSize(20);
+		text("Level", aWindowWidth/2, windowHeight/2 - 100);
+		textSize(30);
+		text("Tutorial", aWindowWidth/2, windowHeight/2 - 70);
+		pop();
+		
+		if (enemyVar.hotCircleSize < 250) {
+			enemyVar.hotCircleSize += 125;
+		}
+		} else {
+		enemyVar.hotCircleSize = 0;
+		}
+
+	//Tank skins
+	if (enemyVar.type == 1) {
+		push();
+		rectMode(CENTER);
+		translate(enemyVar.x, enemyVar.y-350);
+		rotate(enemyVar.rotate+90);
+		stroke(0, 0, 0, 100);
+		strokeWeight(3);
+		line(0, 0, -15, 15);
+		line(0, 0, 15, 15);
+		line(0, 0, 15, -15);
+		line(0, 0, -15, -15);
+		noStroke();
+		fill(30, 130, 123, 255 * (enemyVar.armor/enemyVar.armorMax));
+		rect(0,0,10,30,3);
+		fill(0, 0, 0, 255 * (enemyVar.armor/enemyVar.armorMax));
+		stroke(0, 0, 0);
+		strokeWeight(1);
+		ellipse(-15, 15, 7.5, 7.5);
+		ellipse(15, 15, 7.5, 7.5);
+		ellipse(15, -15, 7.5, 7.5);
+		ellipse(-15, -15, 7.5, 7.5);
+		fill(100, 100, 100, 255 * (enemyVar.armor/enemyVar.armorMax));
+		ellipse(-15, 15, 25, 25);
+		ellipse(15, 15, 25, 25);
+		ellipse(15, -15, 25, 25);
+		ellipse(-15, -15, 25, 25);
+		noStroke();
+		pop();
+	}
+};
 
 function tankSpawn(tankVar) {
 	if (tankVar.aimControl === "mouse") {
@@ -235,16 +501,15 @@ function tankSpawn(tankVar) {
 					if(tankVar.speed <= (3 * tankVar.speedMultipler)) {
 						tankVar.speed += tankVar.acceleration * tankVar.speedMultipler;
 					}
+				} if (keys[83]) { // "S" key for backward movement
+				if (tankVar.speed >= (-3 * tankVar.speedMultipler)) {
+					tankVar.speed -= tankVar.acceleration * tankVar.speedMultipler;
 				}
-				if(keys[83]) {
-					if(tankVar.speed > (-3 * tankVar.speedMultipler)) {
-						tankVar.speed -= tankVar.acceleration * tankVar.speedMultipler;
-					}
 				}
-				if(tankVar.speed === (3 * tankVar.speedMultipler)) {
-					tankVar.speed = 3 * tankVar.speedMultipler;
+				if (tankVar.speed === (3 * tankVar.speedMultipler)) {
+				tankVar.speed = 3 * tankVar.speedMultipler;
 				} else if (tankVar.speed === (-3 * tankVar.speedMultipler)) {
-					tankVar.speed = 3 * tankVar.speedMultipler;
+				tankVar.speed = -3 * tankVar.speedMultipler;
 				}
 			}
 			if((!keys[87]) && (!keys[83])) {
@@ -303,20 +568,20 @@ aTank.bulletX = (aWindowWidth/2) - viewport.x;
 aTank.bulletY = (windowHeight/2) - viewport.y;
 		
 	if (tankVar.firing) {
-	if ((!tankHover)) {
-			if(mouseIsPressed){
-				if(tankVar.reloadVar == 0){
-						bullets.push(new bullet(tankVar.bulletX,tankVar.bulletY));
-						tankVar.reloadVar = tankVar.reloadMax;
+		if ((!tankHover)) {
+				if(mouseIsPressed){
+					if(tankVar.reloadVar == 0){
+							bullets.push(new bullet(tankVar.bulletX,tankVar.bulletY));
+							tankVar.reloadVar = tankVar.reloadMax;
+					}
 				}
-			}
-			if(keys[32]){
-				if(tankVar.reloadVar == 0){
-						bullets.push(new bullet(tankVar.bulletX,tankVar.bulletY));
-						tankVar.reloadVar = reload.max;
+				if(keys[32]){
+					if(tankVar.reloadVar == 0){
+							bullets.push(new bullet(tankVar.bulletX,tankVar.bulletY));
+							tankVar.reloadVar = reload.max;
+					}
 				}
-			}
-	}
+		}
 	}
 
 	
@@ -483,14 +748,12 @@ function level1() {
 	fill(255);
 	textSize(30);
 	text("Welcome to Muzzl!\nThis game is a top down 'shooter' where you liberate\nislands as apart of your military campaign.\nTo start, use WASD to move around.\nTransparency on your tank usually represents your\ndamage, but it also happens when above a message.\nMove up the island to the next area.", aWindowWidth/2, windowHeight/2 + 250);
-	if (aTank.firing) {
-		for (let i = 0; i < bullets.length; i++) {
-				bullets[i].draw();
-		} 
+	for (let i = 0; i < bullets.length; i++) {
+		bullets[i].draw();
 	}
+	enemySpawn(aEnemy);
 	pop();
 	tankSpawn(aTank);
-
 		
 	if (fade.intro > 0) {
 		fill(0, 0, 0, fade.intro);
@@ -502,10 +765,10 @@ function level1() {
 function debug() {
 	fill(255, 0, 0);
 	textSize(25);
-	text(viewport.x, mouseX + 125, mouseY);
-	text(viewport.y, mouseX + 125, mouseY + 20);
-	text(aTank.speed, mouseX + 125, mouseY + 45);
-	text(aTank.turretRotateCopy, mouseX + 125, mouseY + 60);
+	text(aWindowWidth/2, mouseX + 125, mouseY);
+	text(viewport.x, mouseX + 125, mouseY + 20);
+	text(aTank.bulletX, mouseX + 125, mouseY + 45);
+	text(aTank.bulletY, mouseX + 125, mouseY + 60);
 
 	if (keyIsPressed) {
 		if(keys[73]) {
