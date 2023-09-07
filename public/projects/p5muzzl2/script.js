@@ -83,8 +83,10 @@ var aEnemy = {
 };
 
 var aTank = {
-	x:600,
+	x:2000,
 	y:600,
+	collisionX: 0,
+	collisionY: 0,
 	bulletX: 600,
 	bulletY: 600,
 	speed: 0,
@@ -117,6 +119,7 @@ var tankHover = false;
 var keys = [];
 var bullets = [];
 var treads = [];
+var collisions = [];
 
 var keyAim = {
 	x: 0,
@@ -162,6 +165,34 @@ bullet.prototype.draw = function() {
     } else {
         // Check for collision with enemies or other objects if needed
     }
+};
+
+function collision(drawType, x, y, width, height, tankVar, collisionX, collisionY, speed, rectMode) {
+	this.drawType = drawType;
+	this.x = x;
+	this.y = y;
+	this.width = width;
+	this.height = height;
+	this.rectMode = rectMode;
+	this.tankVar = x;
+	this.collisionX = collisionX;
+	this.collisionY = collisionY;
+	this.speed = speed;
+};
+
+//100 height, 70 width
+collision.prototype.draw = function() {
+	if (this.drawType === rect) {
+		if ((this.rectMode === null) || (this.rectMode === CENTER)) {
+			rect(this.x, this.y, this.width, this.height);
+		} else {
+			rectMode(this.rectMode);
+			rect(this.x, this.y, this.width, this.height);
+		}
+		if (((this.collisionX - 35) < (this.x + (this.width/2))) && ((this.collisionX + 35) > (this.x -(this.width/2))) && ((this.collisionY - 50) > this.y -(this.height/2)) && ((this.collisionY + 50) < this.y + (this.height/2))) {
+			this.speed = 0;
+		}
+	}
 };
 
 function tread(x, y, rotate) {
@@ -611,6 +642,9 @@ function tankSpawn(tankVar) {
 		}	
 	}
 
+	tankVar.collisionX = (aWindowWidth/2) - viewport.x;
+	tankVar.collisionY = (windowHeight/2) - viewport.y;
+
 	viewport.x += (cos(tankVar.rotate) * tankVar.speed);
 	viewport.y += (sin(tankVar.rotate) * tankVar.speed);
 
@@ -666,10 +700,10 @@ function tankSpawn(tankVar) {
 			tankVar.hotCircleSize += 125;
 		}
 		} else {
-		tankVar.hotCircleSize = 0;
+			tankVar.hotCircleSize = 0;
 		}
 
-		//Tank skins
+	//Tank skins
 	if (tankVar.type == 1) {
 		noStroke();
 		push();
@@ -791,16 +825,15 @@ function level1() {
 	background(255);
 	push();
 	translate(viewport.x, viewport.y);
-	//fill(150);
-	//message(0, 250, 850, 350, 20, aTank);
+	fill(150);
 	for (let i = 0; i < bullets.length; i++) {
 		bullets[i].draw();
 	}
 	fill(100);
-	message(0, -250, 500, 200, 20, aTank);
+	message(0, -100, 500, 200, 20, aTank);
 	fill(255);
 	textSize(100);
-	text("Ready", aWindowWidth/2, windowHeight/2 - 250);
+	text("Ready", aWindowWidth/2, windowHeight/2 - 100);
 
 	for (let i = 0; i < treads.length; i++) {
 		treads[i].draw();
@@ -838,7 +871,11 @@ function level1() {
 			fade.out += 2.5;
 		}
 		if (fade.out >= 255) {
+			treads.length = 0;
+			bullets.length = 0;
 			fade.intro = 255;
+			paused = false;
+			collisions.push(new collision(rect, 750, 750, 850, 350, aTank, aTank.collisionX, aTank.collisionY, aTank.speed));
 			stage = 3;
 		}
 	}
@@ -848,7 +885,8 @@ var prompts = [
 	"\"...Welcome, Muzzl.\nAgent, you might have forgotten how to operate yourself so let's get you rehabilitated.\nMove around in all axes, move the turret, and fire.\nWhen you're ready, step on the pressure plate ahead to begin.\""
 ];
 
-function level2() {
+function level2() {	
+	pulseMath();
 	background(-pulse.var, pulse.var - 25, pulse.var + 200);
 	push();
 	translate(viewport.x, viewport.y);
@@ -857,10 +895,12 @@ function level2() {
 	fill(52, 140, 49);
 	rect(aWindowWidth/2, windowHeight/2, 900, 900, 20);
 	fill(100, 100, 100);
-	message(0, 250, 850, 350, 20, aTank);
-	fill(255);
-	textSize(30);
-	text("Welcome to Muzzl!\nThis game is a top down 'shooter' where you liberate\nislands as apart of your military campaign.\nTo start, use WASD to move around.\nTransparency on your tank represents stealth,\n and on your turret is your health.\nSecure the island and move on.", aWindowWidth/2, windowHeight/2 + 250);
+	fill(150);
+
+	for (let i = 0; i < collisions.length; i++) {
+		collisions[i].draw();
+	}
+
 	for (let i = 0; i < bullets.length; i++) {
 		bullets[i].draw();
 	}
@@ -886,7 +926,8 @@ function level2() {
 function debug() {
 	fill(255, 0, 0);
 	textSize(25);
-	text(fade.out, mouseX + 40, mouseY + 5)
+	text(windowHeight/2 -viewport.y, mouseX + 40, mouseY + 5)
+	text(aTank.collisionY, mouseX + 40, mouseY + 35)
 	if (keyIsPressed) {
 		if(keys[73]) {
 			viewport.y += 5;
@@ -934,6 +975,5 @@ function draw() {
 	} else if (stage == 3) {
 		level2();
 	}
-	pulseMath();
 	debug();
 }  
