@@ -1,50 +1,62 @@
 disableFriendlyErrors = true;
 
-var deck = [2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A"];
-var playingDeck = [2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A"];
-var hand = [];
-var dealer = [];
-var playerHit = true;
-var dealerHit = true;
+
+// Level, 1 = intro, 2 = Menu, 3 = TankJack!!
+var stage = 1;
+var money = 100;
+var bet = 0;
+var gameBet = 0;
+
+// Blackjack game variables
+var blackjack = {
+	playingDeck: [2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A"],
+	hand: [],
+	dealer: []
+}
+//Dealer image
+var dealerImg;
+function preload() {
+  dealerImg = loadImage('https://m.media-amazon.com/images/I/71lj9cp80dL.jpg');
+}
 
 var currentPrompt = ""; // Stores the current text being displayed
 var promptIndex = 0; // Index of the current character to be added
 var typingTimer; // Timer to control the typing effect
 
-var preAWindowWidth;
-var preWindowHeight;
-var scaleResolution;
-
 var gameStarted = false;
 
+//Button activated coords
 var messageFlags = {};
 
-var dealerImg;
-
+//Scaling resolution variables
+var scaleResolution = 1;
 var aWindowWidth = 1366;
-
-function preload() {
-  dealerImg = loadImage('https://m.media-amazon.com/images/I/71lj9cp80dL.jpg');
-}
-
 var translateCenter = {
 	x: 0,
 	y: 0
 }
-var speedDecay = 0.05;
+var center = {
+	x: 0,
+	y: 0
+}
+var viewport = {
+	x: 0,
+	y: -440
+}
 
-// Level, 1 = intro, 2 = Menu (depreciated), 3 = CarJack!!
-var stage = 1;
-
-var money = 100;
-var bet = 0;
-
-//Locked in bet for the game
-var gameBet = 0;
+//Game-wide variables
+var pulse = {
+	var: 200,
+	rate: 5,
+}
+var fade = {
+	intro: 255,
+	out: 0
+}
 
 var introVar = {
 	cubeRotate: 0,
-	tankY: 300,
+	tankY: 800,
 	tankRotate: 0,
 	turretRotate: 0,
 	bulletX: 454,
@@ -53,22 +65,13 @@ var introVar = {
 	soundTransparency: 0,
 }
 
-var pulse = {
-	var: 200,
-	rate: 5,
-}
-
-var fade = {
-	intro: 255,
-	out: 0
-}
-
 var aTank = {
 	x:2000,
 	y:600,
 	bulletX: 600,
 	bulletY: 600,
 	speed: 0,
+	speedDecay: 0.05,
 	acceleration: 0.75,
 	rotate: 90,
 	turretRotateCopy: 0,
@@ -91,8 +94,6 @@ var aTank = {
 	hotCircleSize: 0
 };
 
-var tankHover = false;
-
 var keys = [];
 var bullets = [];
 var treads = [];
@@ -101,11 +102,6 @@ var collisions = [];
 var keyAim = {
 	x: 0,
 	y: 0
-}
-
-var viewport = {
-	x: 0,
-	y: -440
 }
 
 function bullet(x, y, tankType) {
@@ -143,19 +139,20 @@ bullet.prototype.draw = function() {
     }
 };
 
-function tread(x, y, rotate) {
+function tread(x, y, rotate, color) {
 	this.x = x;
 	this.y = y;
 	this.rotate = rotate;
 	this.a = true;
 	this.life = 0;
+	this.color = color || [112, 84, 62];
 };
 
 tread.prototype.draw = function() {
 	push();
 	translate(this.x,this.y);
 	rotate(this.rotate+90);
-	fill(112, 84, 62);
+	fill(this.color[0], this.color[1], this.color[2], 255 * (1 - (this.life / 500)));
 	rect(-30,0,12.5,87.5,12.5);
 	rect(30,0,12.5,87.5,12.5);
 	pop();
@@ -169,9 +166,9 @@ tread.prototype.draw = function() {
 };
 
 function message(offsetX, offsetY, width, height, curve, tankVar, sentence, func) {
-	rect(aWindowWidth/2 + offsetX, windowHeight/2 + offsetY, width, height, curve);
+	rect(((center.x) + offsetX), ((center.y) + offsetY), width, height, curve);
 	fill(255);
-	text(sentence, aWindowWidth/2 + offsetX, windowHeight/2 + offsetY);
+	text(sentence, center.x + offsetX, center.y + offsetY);
 
 	//Store this message's coords in the messageFlags object to differentiate between messages for collision detection
 	var key = offsetX + ',' + offsetY;
@@ -180,7 +177,7 @@ function message(offsetX, offsetY, width, height, curve, tankVar, sentence, func
 	}
 
 	// Check if the viewport is within the bounds of the message rectangle
-	if ((viewport.x < (offsetX + width/2)) && (viewport.x > (offsetX -width/2)) && (viewport.y > -offsetY + -(height/2)) && (viewport.y < -offsetY + (height/2))) {
+	if ((viewport.x > (-offsetX - width/2)) && (viewport.x < (-offsetX +width/2)) && (viewport.y > -offsetY + -(height/2)) && (viewport.y < -offsetY + (height/2))) {
 		if (!messageFlags[key]) {
 			func();
 			messageFlags[key] = true;
@@ -192,15 +189,15 @@ function message(offsetX, offsetY, width, height, curve, tankVar, sentence, func
 
 
 function setup() {
-	//var canvas = createCanvas(1366, 768);
+	//createCanvas(1366, 768);
 	createCanvas(windowWidth, windowHeight);
 	var canvas = document.querySelector("canvas");
 	canvas.style.margin = 'auto';
 	document.getElementById("script-holder").appendChild(canvas);
 	windowResized();
 	
-	commsHeight = windowHeight/2 + ((windowHeight/2)/2);
-	commsWidth = aWindowWidth/2;
+	commsHeight = center.y + ((center.y)/2);
+	commsWidth = center.x;
 	rectMode(CENTER);
 	textAlign(CENTER, CENTER);
 	angleMode(DEGREES);
@@ -211,10 +208,10 @@ function setup() {
 
 //For a keyCode (I know, I should change it since it's deprecated), set the key to true in an array
 function keyPressed() {
-	keys[keyCode] = true;
+	keys[event.key.toLowerCase()] = true;
 }
 function keyReleased() {
-	keys[keyCode] = false;
+	keys[event.key.toLowerCase()] = false;
 }
 
 //Smooth pulse effect
@@ -233,12 +230,12 @@ function randomize(arr) {
   	}
   	return arr;
 }
-playingDeck = randomize(playingDeck);
+blackjack.playingDeck = randomize(blackjack.playingDeck);
 
 function deal(arr) {
-	let card = playingDeck[0];
+	let card = blackjack.playingDeck[0];
 	arr.push(card);
-	playingDeck.splice(0, 1);
+	blackjack.playingDeck.splice(0, 1);
 }
 
 function score(arr) {
@@ -337,22 +334,22 @@ function tankSpawn(tankVar) {
 	
 		if (tankVar.control == "wasd") {
 			if (keyIsPressed) {
-				if(keys[65]) {
+				if(keys["a"]) {
 					if(tankVar.speed > (-2 * tankVar.speedMultipler)) {
 						tankVar.rotate -= 3;
 					}
 				}
-				if(keys[68]) {
+				if(keys["d"]) {
 					if(tankVar.speed > (-2 * tankVar.speedMultipler)) {
 						tankVar.rotate +=3;
 					}
 				}
-				if(keys[87]) {
+				if(keys["w"]) { // "W" key for forward movement
 					if(tankVar.speed <= (3 * tankVar.speedMultipler)) {
 						tankVar.speed += tankVar.acceleration * tankVar.speedMultipler;
 					}
 				}
-				if (keys[83]) { // "S" key for backward movement
+				if (keys["s"]) { // "S" key for backward movement
 					if (tankVar.speed >= (-3 * tankVar.speedMultipler)) {
 						tankVar.speed -= tankVar.acceleration * tankVar.speedMultipler;
 					}
@@ -363,40 +360,40 @@ function tankSpawn(tankVar) {
 					tankVar.speed = -3 * tankVar.speedMultipler;
 				}
 			}
-			if((!keys[87]) && (!keys[83])) {
-				if (Math.abs(tankVar.speed) <= speedDecay) {
+			if((!keys["w"]) && (!keys["s"])) {
+				if (Math.abs(tankVar.speed) <= tankVar.speedDecay) {
 					tankVar.speed = 0;
 				} else {
-					tankVar.speed -= Math.sign(tankVar.speed) * speedDecay;
+					tankVar.speed -= Math.sign(tankVar.speed) * tankVar.speedDecay;
 				}				  
 			}
 		} else {
 			if (keyIsPressed) {
-				if(keys[37]) {
+				if(keys["arrowleft"]) {
 					if(tankVar.speed > (-2 * tankVar.speedMultipler)) {
 						tankVar.rotate -=3;
 					}
 				}
-				if(keys[39]) {
+				if(keys["arrowright"]) {
 					if(tankVar.speed > (-2 * tankVar.speedMultipler)) {
 						tankVar.rotate +=3;
 					}
 				}
-				if(keys[38]) {
+				if(keys["arrowup"]) {
 					if(tankVar.speed <= (3 * tankVar.speedMultipler)) {
 						tankVar.speed += tankVar.acceleration * tankVar.speedMultipler;
 					}
 				}
-				if(keys[40]) {
+				if(keys["arrowdown"]) {
 					if(tankVar.speed >= (-3 * tankVar.speedMultipler)) {
 						tankVar.speed -= tankVar.acceleration * tankVar.speedMultipler;
 					}
 				}
-				if(!keys[38] && !keys[40]) {
-					if (Math.abs(tankVar.speed) <= speedDecay) {
+				if(!keys["arrowup"] && !keys["arrowdown"]) {
+					if (Math.abs(tankVar.speed) <= tankVar.speedDecay) {
 						tankVar.speed = 0;
 					} else {
-						tankVar.speed -= Math.sign(tankVar.speed) * speedDecay;
+						tankVar.speed -= Math.sign(tankVar.speed) * tankVar.speedDecay;
 					}					  
 				}
 				if(tankVar.speed === (3 * tankVar.speedMultipler)) {
@@ -407,34 +404,32 @@ function tankSpawn(tankVar) {
 			}
 		}
 	/*} else {
-		if (Math.abs(tankVar.speed) <= speedDecay) {
+		if (Math.abs(tankVar.speed) <= tankVar.speedDecay) {
 			tankVar.speed = 0;
 		} else {
-			tankVar.speed -= Math.sign(tankVar.speed) * speedDecay;
+			tankVar.speed -= Math.sign(tankVar.speed) * tankVar.speedDecay;
 		}	
 	}*/
 
 	viewport.x += (cos(tankVar.rotate) * tankVar.speed);
 	viewport.y += (sin(tankVar.rotate) * tankVar.speed);
 
-	aTank.bulletX = (aWindowWidth/2) - viewport.x;
-	aTank.bulletY = (windowHeight/2) - viewport.y;
+	aTank.bulletX = (center.x) - viewport.x;
+	aTank.bulletY = (center.y) - viewport.y;
 
-	treads.push(new tread(tankVar.bulletX, tankVar.bulletY, tankVar.rotate));
+	treads.push(new tread(tankVar.bulletX, tankVar.bulletY, tankVar.rotate, [(90 + pulse.var * 0.15), (60 + pulse.var * 0.08), (30 + pulse.var * 0.04)]));
 		
 	if (tankVar.firing) {
-		if ((!tankHover)) {
-			if(mouseIsPressed){
-				if(tankVar.reloadVar == 0){
-					bullets.push(new bullet(tankVar.bulletX, tankVar.bulletY, tankVar));
-					tankVar.reloadVar = tankVar.reloadMax;
-				}
+		if(mouseIsPressed){
+			if(tankVar.reloadVar == 0){
+				bullets.push(new bullet(tankVar.bulletX, tankVar.bulletY, tankVar));
+				tankVar.reloadVar = tankVar.reloadMax;
 			}
-			if(keys[32]){
-				if(tankVar.reloadVar == 0){
-					bullets.push(new bullet(tankVar.bulletX, tankVar.bulletY, tankVar));
-					tankVar.reloadVar = reload.max;
-				}
+		}
+		if(keys[32]){
+			if(tankVar.reloadVar == 0){
+				bullets.push(new bullet(tankVar.bulletX, tankVar.bulletY, tankVar));
+				tankVar.reloadVar = reload.max;
 			}
 		}
 	}
@@ -451,7 +446,7 @@ function tankSpawn(tankVar) {
 	}
 
 	//Circle bar
-	if(keys[67]){
+	if(keys["c"]){
 		fill(0, 0, 0, 100);
 		ellipse(tankVar.x, tankVar.y, tankVar.hotCircleSize, tankVar.hotCircleSize);
 
@@ -459,14 +454,18 @@ function tankSpawn(tankVar) {
 		push();
 		fill(255);
 		textSize(20);
-		text("Money", aWindowWidth/2, windowHeight/2 - 100);
-		text("Bet", aWindowWidth/2 - 75, windowHeight/2 - 25);
-		text("Adjust", aWindowWidth/2 + 75, windowHeight/2 - 25);
+		text("Money", center.x, center.y - 100);
 		textSize(30);
-		text("Start!", aWindowWidth/2, windowHeight/2 + 80);
-		text("$" + bet, aWindowWidth/2 - 80, windowHeight/2 + 5);
-		text("$" + money, aWindowWidth/2, windowHeight/2 - 70);
-		text("-   +", aWindowWidth/2 + 75, windowHeight/2);
+		text("$" + money, center.x, center.y - 70);
+		if ((stage === 3)) {
+		textSize(20);
+		text("Bet", center.x - 75, center.y - 25);
+		text("Adjust", center.x + 75, center.y - 25);
+		textSize(30);
+		text("Start!", center.x, center.y + 80);
+		text("$" + bet, center.x - 80, center.y + 5);
+		text("-   +", center.x + 75, center.y);
+		}
 		pop();
 		
 		if (tankVar.hotCircleSize < 250) {
@@ -477,10 +476,10 @@ function tankSpawn(tankVar) {
 		}
 
 		if (mouseIsPressed &&
-			((mouseX - (aWindowWidth/2) < 65)) &&
-			((mouseX - (aWindowWidth/2) > 45)) &&
-			((mouseY - (windowHeight/2) < 15)) &&
-			((mouseY - (windowHeight/2) > -10))
+			((mouseX - (center.x) < 65)) &&
+			((mouseX - (center.x) > 45)) &&
+			((mouseY - (center.y) < 15)) &&
+			((mouseY - (center.y) > -10))
 		) {
 			if ((bet - 5) >= 0) {
 				bet -= 5;
@@ -488,10 +487,10 @@ function tankSpawn(tankVar) {
 		}
 
 		if (mouseIsPressed &&
-			((mouseX - (aWindowWidth/2) < 105)) &&
-			((mouseX - (aWindowWidth/2) > 80)) &&
-			((mouseY - (windowHeight/2) < 15)) &&
-			((mouseY - (windowHeight/2) > -10))
+			((mouseX - (center.x) < 105)) &&
+			((mouseX - (center.x) > 80)) &&
+			((mouseY - (center.y) < 15)) &&
+			((mouseY - (center.y) > -10))
 		) {
 			if ((bet + 5) <= money) {
 				bet += 5;
@@ -499,24 +498,25 @@ function tankSpawn(tankVar) {
 		}
 
 		if (mouseIsPressed &&
-			((mouseX - (aWindowWidth/2) < 45)) &&
-			((mouseX - (aWindowWidth/2) > -40)) &&
-			((mouseY - (windowHeight/2) < 95)) &&
-			((mouseY - (windowHeight/2) > 65))
+			((mouseX - (center.x) < 45)) &&
+			((mouseX - (center.x) > -40)) &&
+			((mouseY - (center.y) < 95)) &&
+			((mouseY - (center.y) > 65))
 		) {
-			if (!gameStarted) {
+			if (!gameStarted && stage === 3) {
 				if (money - bet >= 0) {
+					prompts[0] = "";
 					gameBet = bet;
 					gameStarted = true;
 					money = money - bet;
 					// Reset the dealer and player hands
-					dealer = [];
-					hand = [];
+					blackjack.dealer = [];
+					blackjack.hand = [];
 					// Deal initial cards to both dealer and player
-					deal(dealer);
-					deal(dealer);
-					deal(hand);
-					deal(hand);
+					deal(blackjack.dealer);
+					deal(blackjack.dealer);
+					deal(blackjack.hand);
+					deal(blackjack.hand);
 				}
 			}
 		}
@@ -548,99 +548,336 @@ function tankSpawn(tankVar) {
 };
 
 var prompts = [
-	"Welcome to CarJack, WMAA's finest blackjack game featuring a tank to\ninteract. Use your WASD keys to tranverse around the world, C for the betting menu,\nand the floor buttons to hit or stand. Fill out your bet and press start to begin!!"
+	"Welcome to TankJack!\nUse your WASD keys to tranverse around the world, drive over the\nfloor buttons to hit or stand, and press C to interact with your bet.\nFill out your bet and press start to begin!!",
+	"Practice your \"money management skills\" here with a variety of minigames\nPress escape to go back to menu in any of these"
 ];
 
-function level2() {	
+function intro() {
+	introVar.cubeRotate += 5;
+	if (introVar.tankY > 682.5) {
+		introVar.tankY -= 1.25;
+	}
+	if ((introVar.tankY == 682.5) && (introVar.tankRotate < 25)) {
+		introVar.tankRotate += 1;
+		introVar.turretRotate = introVar.tankRotate;
+	}
+	if (introVar.tankRotate == 25 && introVar.turretRotate < 90) {
+		introVar.turretRotate += 1;
+	}
+	if (introVar.turretRotate == 90) {
+		if (introVar.bulletX <= 1525) {
+			introVar.bulletX += 8;
+		}
+		if ((introVar.bulletX >= 497)) {
+			introVar.bulletTransparency = 255;
+			introVar.soundTransparency = 50;
+		}
+	}
+	if ((introVar.bulletX >= 536)) {
+		introVar.textCover += 8;
+	}
+	if ((introVar.bulletX >= 1525) && (fade.out < 255)) {
+		fade.out += 2.5;
+	}
+	
+	background(0);
+	push();
+	translate(translateCenter.x, translateCenter.y);
+	scale(scaleResolution);
+	//Logo texts
+	fill(255, 255, 255);
+	textSize(725);
+	text("DP", 625, 347.5);
+	textSize(75);
+	text("roductions", 1010, 550.5);
+	//Cube
+	push();
+	translate(150, 675);
+	rotate(introVar.cubeRotate);
+	fill(-pulse.var, pulse.var, pulse.var + 100);
+	rect(0, 0, 125, 125, 15);
+	pop();
+	textSize(75);
+	text("X", 150, 680);
+
+	//Tank & turret
+	push();
+	translate(400, introVar.tankY);
+	fill(50, 0, 0);
+	push();
+	scale(3);
+	rect(-12,0,5,35,5);
+	rect(12,0,5,35,5);
+	fill(0, 120, 0);
+	rect(0,0,20,40,5);
+	pop();
+	pop();
+	push();
+	translate(400, introVar.tankY);
+	rotate(introVar.turretRotate);
+	fill(0, 100, 0);
+	push();
+	scale(3);
+	rect(0,0,15,15,5);
+	rect(0,-20,5,25,0);
+	pop();
+	pop();
+	//...and more text & bullet
+	textSize(125);
+	text("...and more", 900, 700);
+	rectMode(CORNER);
+	fill(0);
+	rect(570, 625, introVar.textCover, 122);
+	push();
+	translate(introVar.bulletX, 662.5);
+	fill(100, 100, 100, introVar.soundTransparency);
+	triangle(-7.5, 45, 40, 17.5, -7.5, -9);
+	fill(158, 60, 14, introVar.bulletTransparency);
+	triangle(2, 27.5, 45, 17.5, 2, 10);
+	pop();
+	rectMode(CENTER);
+	pop();
+	
+	if (fade.intro > 0) {
+		fill(0, 0, 0, fade.intro);
+		rect(center.x, center.y, aWindowWidth, windowHeight);
+		fade.intro -= 2.5;
+	}
+
+	fill(0, 0, 0, fade.out);
+	rect(center.x, center.y, aWindowWidth, windowHeight);
+	
+	if (fade.out >= 255) {
+		fade.intro = 255;
+		stage = 2;
+	}
+}
+
+function menu() {
+	pulseMath();
+	background(-pulse.var, pulse.var - 25, pulse.var + 200);
+	push();
+	translate(viewport.x, viewport.y);
+	fill(255, 245, 190);
+	rect(center.x, center.y, 1000, 1000, 20);
+	fill(52, 140, 49);
+	rect(center.x, center.y, 900, 900, 20);
+	fill(88, 57, 39);
+	//The docks
+	for (let i = 0; i < 10; i++) {
+		rect(center.x, center.y + 375 + (i * 25), 150, 25, 20);
+	}
+	fill(255);
+	textSize(100);
+	text("TankJack", center.x, center.y - 350);
+	fill(100);
+	textSize(50);
+	//TankJack button
+	message(-250, -150, 250, 200, 20, aTank, "TankJack", function() {
+		stage = 3;
+		treads.length = 0;
+		viewport.x = 0;
+		viewport.y = -440;
+	});
+
+	fill(100);
+	textSize(50);
+	//Freestyle drawing button
+	message(250, -150, 250, 200, 20, aTank, "TreadDraw", function() {
+		stage = 4;
+		treads.length = 0;
+		viewport.x = 0;
+		viewport.y = -440;
+	});
+
+	fill(100);
+	textSize(50);
+	//Wordle clone button
+	message(250, 100, 250, 200, 20, aTank, "Tankle (WIP)", function() {
+		stage = 4;
+		treads.length = 0;
+		viewport.x = 0;
+		viewport.y = -440;
+	});
+
+	fill(100);
+	textSize(50);
+	//Wordle clone button
+	message(-250, 100, 250, 200, 20, aTank, "Bounty Hunting", function() {
+		stage = 4;
+		treads.length = 0;
+		viewport.x = 0;
+		viewport.y = -440;
+	});
+
+	// Draw the tank and its treads
+	for (let i = 0; i < bullets.length; i++) {
+		bullets[i].draw();
+	}
+	for (let i = 0; i < treads.length; i++) {
+		treads[i].draw();
+	}
+	pop();
+
+	tankSpawn(aTank);
+
+	// Start the typing effect when the currentPrompt is not equal to prompts[0]
+	if (currentPrompt !== prompts[1]) {
+		// Check if the prompt is fully displayed
+		if (promptIndex < prompts[1].length) {
+			// If not, continue adding characters to the currentPrompt
+			currentPrompt += prompts[1].charAt(promptIndex);
+			promptIndex++;
+		} else {
+			currentPrompt = prompts[1];
+		}	
+	}
+
+	// Draw the current prompt text
+	strokeWeight(4);
+	stroke(0);
+	fill(255);
+	textSize(40);
+	text(currentPrompt, commsWidth, commsHeight);
+	strokeWeight(0);
+
+	// Fade in the screen, or moreso fade out of the previous screen
+	if (fade.intro > 0) {
+		fill(0, 0, 0, fade.intro);
+		rect(center.x, center.y, aWindowWidth, windowHeight);
+		fade.intro -= 2.5;
+	}
+}
+
+function treadDraw() {
+	pulseMath();
+	background(255);
+	push();
+	translate(viewport.x, viewport.y);
+	fill(100);
+	textSize(50);
+	text("Press Escape to leave at any time",center.x, center.y);
+	// Draw the tank and its treads
+	for (let i = 0; i < bullets.length; i++) {
+		bullets[i].draw();
+	}
+	for (let i = 0; i < treads.length; i++) {
+		treads[i].draw();
+	}
+	pop();
+
+	tankSpawn(aTank);
+
+	if(keys["escape"]) {
+		stage = 2;
+		treads.length = 0;
+		viewport.x = 0;
+		viewport.y = -440;	
+	}
+	
+	// Fade in the screen, or moreso fade out of the previous screen
+	if (fade.intro > 0) {
+		fill(0, 0, 0, fade.intro);
+		rect(center.x, center.y, aWindowWidth, windowHeight);
+		fade.intro -= 2.5;
+	}
+}
+
+function tankJack() {	
 	//Background pulse effect & island rendering
 	pulseMath();
 	background(-pulse.var, pulse.var - 25, pulse.var + 200);
 	push();
 	translate(viewport.x, viewport.y);
 	fill(255, 245, 190);
-	rect(aWindowWidth/2, windowHeight/2, 1000, 1000, 20);
+	rect(center.x, center.y, 1000, 1000, 20);
 	fill(52, 140, 49);
-	rect(aWindowWidth/2, windowHeight/2, 900, 900, 20);
+	rect(center.x, center.y, 900, 900, 20);
 	fill(100, 100, 100);
 	fill(150);
-	translate(aWindowWidth/2, windowHeight/2 - 250);
+	translate(center.x, center.y - 250);
 	push();
 	scale(0.5);
 	image(dealerImg, 0, 0);
 	pop();
-	translate(-aWindowWidth/2, -windowHeight/2 + 250);
+	translate(-center.x, -center.y + 250);
 
 	fill(88, 57, 39);
-
 	//The docks
 	for (let i = 0; i < 10; i++) {
-		rect(aWindowWidth/2, windowHeight/2 + 375 + (i * 25), 150, 25, 20);
+		rect(center.x, center.y + 375 + (i * 25), 150, 25, 20);
 	}
 
 	fill(255);
 	textSize(50);
-	text("Dealer: " + obfuscateHand(dealer).join(", "), aWindowWidth/2, windowHeight/2);
-	text("Tank: " + hand.join(", ") + " Score: " + score(hand), aWindowWidth/2, windowHeight/2 + 50);
+	text("Dealer: " + obfuscateHand(blackjack.dealer).join(", "), center.x, center.y);
+	text("Tank: " + blackjack.hand.join(", ") + " Score: " + score(blackjack.hand), center.x, center.y + 50);
 
-	//Weird bug where the text "Hit" and "Stand" are on opposite buttons I think
 	fill(100);
-	textSize(100);
-	message(-250, 200, 250, 200, 20, aTank, "Hit", function() {
-		if (gameStarted) {}
-			if (score(dealer) > 16) {
-				let playerScore = score(hand);
-				let dealerScore = score(dealer);
+	textSize(75);
+	message(-250, 200, 250, 200, 20, aTank, "Stand", function() {
+		if (gameStarted) {
+			if (score(blackjack.dealer) > 16) {
+				let playerScore = score(blackjack.hand);
+				let dealerScore = score(blackjack.dealer);
 
 				if (playerScore > 21 && dealerScore > 21) {
-					prompts[0] = "Both busted! It's a tie! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "Both busted! It's a tie! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet;
 					gameStarted = false;
 				} else if (playerScore === 21 && dealerScore !== 21) {
-					prompts[0] = "Blackjack! You win! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "Blackjack! You win! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet * 2;
 					gameStarted = false;
 				} else if (dealerScore === 21 && playerScore !== 21) {
-					prompts[0] = "Dealer has blackjack! Dealer wins! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "Dealer has blackjack! Dealer wins! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					gameStarted = false;
 				} else if (playerScore === 21 && dealerScore === 21) {
-					prompts[0] = "Both have blackjack! It's a tie! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "Both have blackjack! It's a tie! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet;
 					gameStarted = false;
 				} else if (playerScore > 21 && dealerScore <= 21) {
-					prompts[0] = "You busted! Dealer wins! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "You busted! Dealer wins! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					gameStarted = false;
 				} else if (dealerScore > 21 && playerScore <= 21) {
-					prompts[0] = "Dealer busted! You win! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "Dealer busted! You win! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet * 2;
 					gameStarted = false;
 				} else if (playerScore < dealerScore && dealerScore <= 21) {
-					prompts[0] = "The dealer wins! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "The dealer wins! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					gameStarted = false;
 				} else if (playerScore > dealerScore && playerScore <= 21) {
-					prompts[0] = "You win! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "You win! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet * 2;
 					gameStarted = false;
 				} else if (playerScore === dealerScore) {
-					prompts[0] = "It's a tie! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "It's a tie! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet;
 					gameStarted = false;
 				} else {
-					prompts[0] = "Unexpected outcome! Dealer score: " + dealerScore + "\nPress Start in the betting menu to restart!";
+					prompts[0] = "Unexpected outcome! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					gameStarted = false;
 				}
 			} else {
-				deal(dealer);
+				deal(blackjack.dealer);
 			}
-		
+		}
 	});
 
 	fill(100);
 	textSize(80);
-	message(250, 200, 250, 200, 20, aTank, "Stand", function() {
+	message(250, 200, 250, 200, 20, aTank, "Hit", function() {
 		if (gameStarted) {
-			deal(hand);
-			if (score(hand) > 21) {
-				prompts[0] = "You busted! Dealer score: " + score(dealer) + "\nPress Start in the betting menu to restart!";
+			deal(blackjack.hand);
+			for(var i=0; i<blackjack.hand.length; i++) {
+				if (((blackjack.hand[i] === "J") || (blackjack.hand[i] === "K") || (blackjack.hand[i] === "Q")) && (score(blackjack.hand) === 21) && (blackjack.hand.length === 2)) {
+					prompts[0] = "Blackjack! Dealer score: " + score(blackjack.dealer) + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					money = money + gameBet * 2;
+					gameStarted = false;
+				}
+			}
+			if (score(blackjack.hand) > 21) {
+				prompts[0] = "You busted! Dealer score: " + score(blackjack.dealer) + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 				gameStarted = false;
 			}
 		}
@@ -676,17 +913,23 @@ function level2() {
 	textSize(40);
 	text(currentPrompt, commsWidth, commsHeight);
 	strokeWeight(0);
-	stroke(255, 204, 100);
 
 	// Slow the tank if out of bounds
 	if((viewport.x > 450) || (viewport.x < -450) || (viewport.y < -450) || (viewport.y > 450)) {
 		aTank.speed = 0;
 	}
 
+	if(keys["escape"]) {
+		stage = 2;
+		treads.length = 0;
+		viewport.x = 0;
+		viewport.y = -440;	
+	}
+
 	// Fade in the screen, or moreso fade out of the previous screen
 	if (fade.intro > 0) {
 		fill(0, 0, 0, fade.intro);
-		rect(aWindowWidth/2, windowHeight/2, aWindowWidth, windowHeight);
+		rect(center.x, center.y, aWindowWidth, windowHeight);
 		fade.intro -= 2.5;
 	}
 }
@@ -695,11 +938,13 @@ function level2() {
 function debug() {
 	fill(255, 0, 0);
 	textSize(25);
-	text(mouseX - (aWindowWidth/2), mouseX + 40, mouseY + 5)
-	text(mouseY - (windowHeight/2), mouseX + 40, mouseY + 35)
+	//
+	text(viewport.x, mouseX + 40, mouseY - 30);
+	text((viewport.x > (-250 - 250/2)) && (viewport.x < (-250 +250/2)), mouseX + 40, mouseY + 5);
+	text((viewport.y > -200 + -(200/2)) && (viewport.y < -200 + (200/2)), mouseX + 40, mouseY + 35);
 	/*
 	if (keyIsPressed) {
-		if(keys[73]) {
+		if(keys[73]) {	
 			viewport.y += 5;
 		}
 		if(keys[74]) {
@@ -727,19 +972,24 @@ function windowResized() {
 	//Keep a consistent aspect ratio of 16:9, aWindowWidth is the actual width of the canvas
 	aWindowWidth = Math.floor(windowHeight * (16/9));
 
-	//Coords to render the tank at the center of the screen
-	aTank.x = Math.floor(aWindowWidth/2);
-	aTank.y = Math.floor(windowHeight/2);
-	aTank.bulletX = (aWindowWidth/2) - viewport.x;
-	aTank.bulletY = (windowHeight/2) - viewport.y;
-	//Half of the difference of the Chromebook res to native, in order to port over Chromebook-screen designed code
-	translateCenter.x = (aWindowWidth - 1366)/2;
-	translateCenter.y = (windowHeight - 768)/2;
+	//Center constants
+	center.x = aWindowWidth/2;
+	center.y = windowHeight/2;
 
+	//Coords to render the tank at the center of the screen
+	aTank.x = Math.floor(center.x);
+	aTank.y = Math.floor(center.y);
+	aTank.bulletX = (center.x) - viewport.x;
+	aTank.bulletY = (center.y) - viewport.y;
+	//Half of the difference of the Chromebook res to native, in order to port over Chromebook-screen designed code
+	translateCenter.x = Math.abs((aWindowWidth - 1366))/4;
+	translateCenter.y = Math.abs((windowHeight - 768))/4;
 	scaleResolution = windowHeight/853;
+
 	//"Communications" text coords
-	commsHeight = windowHeight/2 + ((windowHeight/2)/2);
-	commsWidth = aWindowWidth/2;
+	commsHeight = center.y + ((center.y)/2);
+	commsWidth = center.x;
+
 	resizeCanvas(aWindowWidth, windowHeight);
 
 	//Reset treads due to rescaling bug, bandage
@@ -747,6 +997,22 @@ function windowResized() {
 }
 
 function draw() {
-	level2();
-	//debug();
+	switch(stage) {
+		case 1:
+			intro();
+			break;
+		case 2:
+			menu();
+			break;
+		case 3:
+			tankJack();
+			break;
+		case 4:
+			treadDraw();
+			break;
+		default:
+			tankJack();
+			break;
+	}
+	debug();
 }
