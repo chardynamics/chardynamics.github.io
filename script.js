@@ -2,7 +2,7 @@ disableFriendlyErrors = true;
 
 
 // Level, 1 = intro, 2 = Menu, 3 = TankJack!!
-var stage = 1;
+var stage = 2;
 var money = 100;
 var bet = 0;
 var gameBet = 0;
@@ -98,6 +98,7 @@ var keys = [];
 var bullets = [];
 var treads = [];
 var collisions = [];
+var boards = [];
 
 var keyAim = {
 	x: 0,
@@ -164,6 +165,10 @@ tread.prototype.draw = function() {
         }
     }
 };
+
+for (let i = 0; i < 30; i++) {
+	boards.push([60 + 28*Math.random(),  57, 39]);
+}
 
 function message(offsetX, offsetY, width, height, curve, tankVar, sentence, func) {
 	rect(((center.x) + offsetX), ((center.y) + offsetY), width, height, curve);
@@ -659,20 +664,24 @@ function menu() {
 	push();
 	translate(viewport.x, viewport.y);
 	fill(255, 245, 190);
-	rect(center.x, center.y, 1000, 1000, 20);
+	ellipse(center.x, center.y, 1000, 1000);
 	fill(52, 140, 49);
-	rect(center.x, center.y, 900, 900, 20);
-	fill(88, 57, 39);
-	//The docks
-	for (let i = 0; i < 10; i++) {
-		rect(center.x, center.y + 375 + (i * 25), 150, 25, 20);
-	}
+	ellipse(center.x, center.y, 900, 900);
+	fill(255, 245, 190);
+	textSize(50);
+	rect(center.x, center.y, 625, 375, 20);
 	fill(255);
 	textSize(100);
-	text("TankJack", center.x, center.y - 350);
-	fill(100);
-	textSize(50);
+	text("TankJack", center.x, center.y - 250);
+	push();
+	fill(255);
+	stroke(0);
+	strokeWeight(4);
+	textSize(30);
+	text("Version 0.0.1\n- Menu selection screen added\nPlans:\n- Add Wordle clone (Tankle)\n- Add a collision system\n- Add a racing game\n- Add dynamic island drawing mechanism", center.x, center.y);
+	pop();
 	//TankJack button
+	/*
 	message(-250, -150, 250, 200, 20, aTank, "TankJack", function() {
 		stage = 3;
 		treads.length = 0;
@@ -709,7 +718,20 @@ function menu() {
 		viewport.x = 0;
 		viewport.y = -440;
 	});
+	*/
+	//The docks
+	push();
+	translate(center.x, center.y);
+	rotate(45);
 
+	for (let i = 0; i<4; i++) {
+		rotate(90 * i);
+		for (let i = 0; i < 30; i++) {
+			fill(boards[i][0], boards[i][1], boards[i][2]);
+			rect(0, 400 + (i * 25), 150, 25, 20);
+		}
+	}
+	pop();
 	// Draw the tank and its treads
 	for (let i = 0; i < bullets.length; i++) {
 		bullets[i].draw();
