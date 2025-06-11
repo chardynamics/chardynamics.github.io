@@ -1,23 +1,32 @@
 disableFriendlyErrors = true;
 
-
 // Level, 1 = intro, 2 = Menu, 3 = TankJack!!
 var stage = 2;
 var money = 100;
 var bet = 0;
 var gameBet = 0;
-
 // Blackjack game variables
 var blackjack = {
+	masterDeck: [2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A"],
 	playingDeck: [2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, 2, 3, 4, 5, 6, 7, 8, 9, 10, "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A", "J", "Q", "K", "A"],
 	hand: [],
 	dealer: []
 }
 //Dealer image
 var dealerImg;
+var tellerImg;
 function preload() {
   dealerImg = loadImage('https://m.media-amazon.com/images/I/71lj9cp80dL.jpg');
+  tellerImg = loadImage('https://thumbs.dreamstime.com/b/bank-teller-wearing-glasses-white-shirt-smiling-assisting-customer-handing-currency-over-counter-office-bank-371626367.jpg');
 }
+
+var debtTime;
+var totalDebts = 3;
+var repayDebt = 0;
+var borrowAmount = 0;
+var canBorrow = true;
+//Borrow or Repayment
+var debtSelection = "Borrow";
 
 var currentPrompt = ""; // Stores the current text being displayed
 var promptIndex = 0; // Index of the current character to be added
@@ -99,6 +108,8 @@ var bullets = [];
 var treads = [];
 var collisions = [];
 var boards = [];
+var trees = [];
+var bushes = [];
 
 var keyAim = {
 	x: 0,
@@ -140,25 +151,29 @@ bullet.prototype.draw = function() {
     }
 };
 
-function tread(x, y, rotate, color) {
-	this.x = x;
-	this.y = y;
-	this.rotate = rotate;
-	this.a = true;
-	this.life = 0;
-	this.color = color || [112, 84, 62];
-};
+function tread(centerX, centerY, bulletX, bulletY, rotate, color) {
+    // Store offset from center at creation
+    this.offsetX = bulletX - centerX;
+    this.offsetY = bulletY - centerY;
+    this.rotate = rotate;
+    this.a = true;
+    this.life = 0;
+    this.color = color || [112, 84, 62];
+}
 
 tread.prototype.draw = function() {
-	push();
-	translate(this.x,this.y);
-	rotate(this.rotate+90);
-	fill(this.color[0], this.color[1], this.color[2], 255 * (1 - (this.life / 500)));
-	rect(-30,0,12.5,87.5,12.5);
-	rect(30,0,12.5,87.5,12.5);
-	pop();
-	this.life += 1;
-	if (this.life > 500) {
+    push();
+    // Draw at the correct world position, regardless of center/viewport changes
+    let drawX = center.x + this.offsetX;
+    let drawY = center.y + this.offsetY;
+    translate(drawX, drawY);
+    rotate(this.rotate + 90);
+    fill(this.color[0], this.color[1], this.color[2], 255 * (1 - (this.life / 500)));
+    rect(-30, 0, 12.5, 87.5, 12.5);
+    rect(30, 0, 12.5, 87.5, 12.5);
+    pop();
+    this.life += 1;
+    if (this.life > 500) {
         let index = treads.indexOf(this);
         if (index !== -1) {
             treads.splice(index, 1);
@@ -166,9 +181,19 @@ tread.prototype.draw = function() {
     }
 };
 
-for (let i = 0; i < 30; i++) {
-	boards.push([60 + 28*Math.random(),  57, 39]);
-}
+function board(x, y) {
+	this.x = x;
+	this.y = y;
+	this.color = [60 + 28*Math.random(),  57, 39];
+};
+
+board.prototype.draw = function() {
+	push();
+	translate(this.x,this.y);
+	fill(this.color[0], this.color[1], this.color[2]);
+	rect(0, 0, 150, 25, 20);
+	pop();
+};
 
 function message(offsetX, offsetY, width, height, curve, tankVar, sentence, func) {
 	rect(((center.x) + offsetX), ((center.y) + offsetY), width, height, curve);
@@ -192,7 +217,6 @@ function message(offsetX, offsetY, width, height, curve, tankVar, sentence, func
 	}
 }
 
-
 function setup() {
 	//createCanvas(1366, 768);
 	createCanvas(windowWidth, windowHeight);
@@ -211,7 +235,6 @@ function setup() {
 	noStroke();
 }
 
-//For a keyCode (I know, I should change it since it's deprecated), set the key to true in an array
 function keyPressed() {
 	keys[event.key.toLowerCase()] = true;
 }
@@ -270,6 +293,136 @@ function obfuscateHand(arr) {
 		obfuscated.push("?");
 	}
 	return obfuscated;
+}
+
+var points = [];
+
+
+
+function bush(x, y) {
+    this.x = x;
+    this.y = y;
+    this.rotate = Math.random() * 360;
+	this.leafColor = random(-10, 10);
+	this.type = "" || "Bush";
+	
+	if (random() >= 0.75) {
+		this.type = "Rock";
+	}
+
+    // Generate leaf points once
+    this.leafPoints = [];
+    let r = 20;
+    let bumps = 5;
+    for (let i = 0; i < bumps; i++) {
+        let angle = 360 * i / bumps;
+        let pointR = (r - 2) + 2 * random();
+        let px = pointR * cos(angle);
+        let py = pointR * sin(angle);
+        this.leafPoints.push([px, py]);
+    }
+}
+
+bush.prototype.draw = function() {
+    push();
+    translate(this.x, this.y);
+    rotate(this.rotate);
+
+    // Draw leaves with a more saturated, lighter green and a dark outline
+    for (let i = 0; i < this.leafPoints.length; i++) {
+        // Lighter, more yellow-green fill for contrast
+        fill(40 + this.leafColor, 70 + this.leafColor, 20 + this.leafColor, 180);
+        ellipse(this.leafPoints[i][0], this.leafPoints[i][1], 50, 50);
+    }
+    pop();
+};
+
+
+function tree(x, y) {
+    this.x = x;
+    this.y = y;
+    this.rotate = Math.random() * 360;
+    this.trunkX = random(-5, 5);
+    this.trunkY = random(-5, 5);
+	this.trunkColor = random(-5, 5);
+	this.leafColor = random(-10, 10);
+
+    // Generate leaf points once
+    this.leafPoints = [];
+    let r = 100;
+    let bumps = 5;
+    for (let i = 0; i < bumps; i++) {
+        let angle = 360 * i / bumps;
+        let pointR = (r - 25) + 25 * random();
+        let px = pointR * cos(angle);
+        let py = pointR * sin(angle);
+        this.leafPoints.push([px, py]);
+    }
+}
+
+tree.prototype.draw = function() {
+    push();
+    translate(this.x, this.y);
+    rotate(this.rotate);
+
+    fill(194 + this.trunkColor, 100 + this.trunkColor, 98 + this.trunkColor);
+    ellipse(this.trunkX, this.trunkY, 75, 75);
+
+    // Draw leaves with a more saturated, lighter green and a dark outline
+    for (let i = 0; i < this.leafPoints.length; i++) {
+        // Lighter, more yellow-green fill for contrast
+        fill(120 + this.leafColor, 200 + this.leafColor, 80 + this.leafColor, 100);
+        ellipse(this.leafPoints[i][0], this.leafPoints[i][1], 200, 200);
+    }
+    pop();
+};
+
+function island(cx, cy) {
+    let r = (1000 / 2) - 200;
+    let bumps = 11;
+    var irregularBump = Math.round(Math.random() * bumps);
+    var irregularBump2 = Math.round(Math.random() * bumps);
+    // Store bumps and the original center offset from center.x/center.y
+    let islandPoints = [irregularBump, irregularBump2, cx - center.x, cy - center.y];
+    for (let i = 0; i < bumps; i++) {
+        let angle = 360 * i / bumps;
+        let pointX = ((r - 50) + 50 * Math.random()) * cos(angle);
+        let pointY = ((r - 50) + 50 * Math.random()) * sin(angle);
+        islandPoints.push([pointX, pointY]);
+    }
+    points.push(islandPoints);
+}
+
+function islandDraw(idx) {
+    let island = points[idx];
+    if (!island) return;
+    let irregularBump = island[0];
+    let irregularBump2 = island[1];
+    // Use current center.x and center.y
+    let cx = center.x + island[2];
+    let cy = center.y + island[3];
+    for (let i = 4; i < island.length; i++) {
+        let px = cx + island[i][0];
+        let py = cy + island[i][1];
+        if (i - 4 === irregularBump || i - 4 === irregularBump2) {
+            fill(255, 220, 120);
+            ellipse(px, py, 750, 750);
+        } else {
+            fill(255, 220, 120);
+            ellipse(px, py, 650, 650);
+        }
+    }
+    for (let i = 4; i < island.length; i++) {
+        let px = cx + island[i][0];
+        let py = cy + island[i][1];
+        if (i - 4 === irregularBump || i - 4 === irregularBump2) {
+            fill(52, 140, 49);
+            ellipse(px, py, 650, 650);
+        } else {
+            fill(52, 140, 49);
+            ellipse(px, py, 550, 550);
+        }
+    }
 }
 
 function tankSpawn(tankVar) {
@@ -422,7 +575,7 @@ function tankSpawn(tankVar) {
 	aTank.bulletX = (center.x) - viewport.x;
 	aTank.bulletY = (center.y) - viewport.y;
 
-	treads.push(new tread(tankVar.bulletX, tankVar.bulletY, tankVar.rotate, [(90 + pulse.var * 0.15), (60 + pulse.var * 0.08), (30 + pulse.var * 0.04)]));
+	treads.push(new tread(center.x, center.y, tankVar.bulletX, tankVar.bulletY, tankVar.rotate, [(90 + pulse.var * 0.15), (60 + pulse.var * 0.08), (30 + pulse.var * 0.04)]));
 		
 	if (tankVar.firing) {
 		if(mouseIsPressed){
@@ -463,15 +616,38 @@ function tankSpawn(tankVar) {
 		textSize(30);
 		text("$" + money, center.x, center.y - 70);
 		if ((stage === 3)) {
-		textSize(20);
-		text("Bet", center.x - 75, center.y - 25);
-		text("Adjust", center.x + 75, center.y - 25);
-		textSize(30);
-		text("Start!", center.x, center.y + 80);
-		text("$" + bet, center.x - 80, center.y + 5);
-		text("-   +", center.x + 75, center.y);
+			textSize(20);
+			text("Bet", center.x - 75, center.y - 25);
+			text("Adjust", center.x + 75, center.y - 25);
+			textSize(30);
+			text("Start!", center.x, center.y + 80);
+			text("$" + bet, center.x - 75, center.y + 5);
+			text("-   +", center.x + 75, center.y);
 		}
-		pop();
+
+		if (stage === 2) {
+			if (debtSelection === "Repayment") {
+				fill(255);
+				textSize(15);
+				text("Repayment", center.x - 75, center.y - 25);
+				textSize(20);
+				text("Adjust", center.x + 75, center.y - 25);
+				textSize(30);
+				text("Repay", center.x, center.y + 80);
+				text("$" + repayDebt, center.x - 75, center.y + 5);
+				text("-   +", center.x + 75, center.y);
+			} else {
+				fill(255);
+				textSize(15);
+				text("Borrow", center.x - 75, center.y - 25);
+				textSize(20);
+				text("Adjust", center.x + 75, center.y - 25);
+				textSize(30);
+				text("Borrow", center.x, center.y + 80);
+				text("$" + borrowAmount, center.x - 75, center.y + 5);
+				text("-   +", center.x + 75, center.y);
+			}
+		}
 		
 		if (tankVar.hotCircleSize < 250) {
 			tankVar.hotCircleSize += 125;
@@ -480,52 +656,149 @@ function tankSpawn(tankVar) {
 			tankVar.hotCircleSize = 0;
 		}
 
-		if (mouseIsPressed &&
-			((mouseX - (center.x) < 65)) &&
-			((mouseX - (center.x) > 45)) &&
-			((mouseY - (center.y) < 15)) &&
-			((mouseY - (center.y) > -10))
-		) {
-			if ((bet - 5) >= 0) {
-				bet -= 5;
+		if (stage === 3) {
+			if (mouseIsPressed &&
+				((mouseX - (center.x) < 65)) &&
+				((mouseX - (center.x) > 45)) &&
+				((mouseY - (center.y) < 15)) &&
+				((mouseY - (center.y) > -10))
+			) {
+				if ((bet - 5) >= 0) {
+					bet -= 5;
+				}
 			}
-		}
 
-		if (mouseIsPressed &&
-			((mouseX - (center.x) < 105)) &&
-			((mouseX - (center.x) > 80)) &&
-			((mouseY - (center.y) < 15)) &&
-			((mouseY - (center.y) > -10))
-		) {
-			if ((bet + 5) <= money) {
-				bet += 5;
+			if (mouseIsPressed &&
+				((mouseX - (center.x) < 105)) &&
+				((mouseX - (center.x) > 80)) &&
+				((mouseY - (center.y) < 15)) &&
+				((mouseY - (center.y) > -10))
+			) {
+				if ((bet + 5) <= money) {
+					bet += 5;
+				}
 			}
-		}
 
-		if (mouseIsPressed &&
-			((mouseX - (center.x) < 45)) &&
-			((mouseX - (center.x) > -40)) &&
-			((mouseY - (center.y) < 95)) &&
-			((mouseY - (center.y) > 65))
-		) {
-			if (!gameStarted && stage === 3) {
-				if (money - bet >= 0) {
-					prompts[0] = "";
-					gameBet = bet;
-					gameStarted = true;
-					money = money - bet;
-					// Reset the dealer and player hands
-					blackjack.dealer = [];
-					blackjack.hand = [];
-					// Deal initial cards to both dealer and player
-					deal(blackjack.dealer);
-					deal(blackjack.dealer);
-					deal(blackjack.hand);
-					deal(blackjack.hand);
+			if (mouseIsPressed &&
+				((mouseX - (center.x) < 45)) &&
+				((mouseX - (center.x) > -40)) &&
+				((mouseY - (center.y) < 95)) &&
+				((mouseY - (center.y) > 65))
+			) {
+				if (!gameStarted && stage === 3) {
+					if (money - bet >= 0) {
+						prompts[0] = "";
+						gameBet = bet;
+						gameStarted = true;
+						money = money - bet;
+						// Reset the dealer and player hands
+						blackjack.playingDeck = randomize(blackjack.masterDeck.slice());
+						blackjack.dealer = [];
+						blackjack.hand = [];
+						// Deal initial cards to both dealer and player
+						deal(blackjack.dealer);
+						deal(blackjack.dealer);
+						deal(blackjack.hand);
+						deal(blackjack.hand);
+					}
 				}
 			}
 		}
 
+		if (stage === 2) {
+			//Repayment logic
+			if (debtSelection === "Repayment") {
+				if (mouseIsPressed &&
+					((mouseX - (center.x) < -33)) &&
+					((mouseX - (center.x) > -115)) &&
+					((mouseY - (center.y) < -15)) &&
+					((mouseY - (center.y) > -33))
+				) {
+					debtSelection = "Borrow";
+					borrowAmount = 0;
+				}
+
+				if (mouseIsPressed &&
+					((mouseX - (center.x) < 65)) &&
+					((mouseX - (center.x) > 45)) &&
+					((mouseY - (center.y) < 15)) &&
+					((mouseY - (center.y) > -10))
+				) {
+					if ((repayDebt - 1) >= 0) {
+						repayDebt -= 1;
+					}
+				}
+
+				if (mouseIsPressed &&
+					((mouseX - (center.x) < 105)) &&
+					((mouseX - (center.x) > 80)) &&
+					((mouseY - (center.y) < 15)) &&
+					((mouseY - (center.y) > -10))
+				) {
+					if ((repayDebt + 1) <= totalDebts) {
+						repayDebt += 1;
+					}
+				}
+
+				if (mouseIsPressed &&
+					((mouseX - (center.x) < 45)) &&
+					((mouseX - (center.x) > -40)) &&
+					((mouseY - (center.y) < 95)) &&
+					((mouseY - (center.y) > 65))
+				) {
+					if (((money - repayDebt) >= 0) && (totalDebts > 0)) {
+						money -= repayDebt;
+						totalDebts -= repayDebt;
+					}
+				}
+			} else {
+				//Borrow logic
+				if (mouseIsPressed &&
+					((mouseX - (center.x) < -33)) &&
+					((mouseX - (center.x) > -115)) &&
+					((mouseY - (center.y) < -15)) &&
+					((mouseY - (center.y) > -33))
+				) {
+					debtSelection = "Repayment";
+					repayDebt = 0;
+				}
+
+				if (mouseIsPressed &&
+					((mouseX - (center.x) < 65)) &&
+					((mouseX - (center.x) > 45)) &&
+					((mouseY - (center.y) < 15)) &&
+					((mouseY - (center.y) > -10))
+				) {
+					if ((borrowAmount - 1) >= 0) {
+						repayDebt -= 1;
+					}
+				}
+
+				if (mouseIsPressed &&
+					((mouseX - (center.x) < 105)) &&
+					((mouseX - (center.x) > 80)) &&
+					((mouseY - (center.y) < 15)) &&
+					((mouseY - (center.y) > -10))
+				) {
+					if (canBorrow) {
+						borrowAmount += 1;
+					}
+				}
+
+				if (mouseIsPressed &&
+					((mouseX - (center.x) < 45)) &&
+					((mouseX - (center.x) > -40)) &&
+					((mouseY - (center.y) < 95)) &&
+					((mouseY - (center.y) > 65))
+				) {
+					//TODO: change canBorrow to false if debtTime is past a certain amount - say 7 days
+					money += borrowAmount;
+					if (debtTime === undefined) {
+						debtTime = new Date();
+					}
+				}
+			}
+		}
 
 	//Tank skins
 	if (tankVar.type == 1) {
@@ -553,8 +826,8 @@ function tankSpawn(tankVar) {
 };
 
 var prompts = [
-	"Welcome to TankJack!\nUse your WASD keys to tranverse around the world, drive over the\nfloor buttons to hit or stand, and press C to interact with your bet.\nFill out your bet and press start to begin!!",
-	"Practice your \"money management skills\" here with a variety of minigames\nPress escape to go back to menu in any of these"
+	"Welcome to TankJack! Test your wits and intelligent wagering abilities\nin dealing with your skill and risk management.\nBeat the bank and make millions at the same time.\nDrive over floor buttons to interact and C for a hotmenu!",
+	"Welcome to TankJack!\nUse your WASD keys to tranverse around the world, drive over the\nfloor buttons to hit or stand, and press C to interact with your bet.\nFill out your bet and press start to begin!!"
 ];
 
 function intro() {
@@ -659,20 +932,176 @@ function intro() {
 }
 
 function menu() {
+	if (boards.length < 30) {
+		for (let i = 0; i < 30; i++) {
+			boards.push(new board(0, i * 25));
+		}
+	}
+
+	if (points.length < 5) {
+		island(center.x, center.y);
+		island(center.x - 1100, center.y - 1100);
+		island(center.x + 1100, center.y - 1100);
+		island(center.x - 1100, center.y + 1100);
+		island(center.x + 1100, center.y + 1100);
+	}
+
+	if (bushes.length < points.length * 5) {
+		let r = (1000 / 2); // Use the same radius as your island
+		for (let i = 0; i < points.length; i++) {
+			let cx = center.x + points[i][2];
+			let cy = center.y + points[i][3];
+			let usedAngles = [];
+			for (let j = 0; j < 15; j++) {
+				let angle;
+				let valid;
+				do {
+					angle = random(0, 360);
+					valid = true;
+					for (let k = 0; k < usedAngles.length; k++) {
+						// Check if angle is within 10 degrees of any used angle (account for wrap-around)
+						let diff = Math.abs(angle - usedAngles[k]);
+						if (diff > 180) diff = 360 - diff;
+						if (diff < 10) {
+							valid = false;
+							break;
+						}
+					}
+					// Also check forbidden ranges
+					if (
+						(angle > 35 && angle < 55) ||
+						(angle > 125 && angle < 155) ||
+						(angle > 215 && angle < 235) ||
+						(angle > 305 && angle < 325)
+					) {
+						valid = false;
+					}
+				} while (!valid);
+				usedAngles.push(angle);
+				let dist = random(r * 0.70, r);
+				let bx = cx + dist * cos(angle);
+				let by = cy + dist * sin(angle);
+				bushes.push(new bush(bx, by));
+			}
+		}
+	}
+
+	if (trees.length < points.length) {
+		let r = (1000 / 2); // Use the same radius as your island
+		for (let i = 0; i < points.length; i++) {
+			let cx = center.x + points[i][2];
+			let cy = center.y + points[i][3];
+			let usedAngles = [];
+			for (let j = 0; j < 4; j++) {
+				let angle;
+				let valid;
+				do {
+					angle = random(0, 360);
+					valid = true;
+					// Check for minimum angle spacing
+					for (let k = 0; k < usedAngles.length; k++) {
+						let diff = Math.abs(angle - usedAngles[k]);
+						if (diff > 180) diff = 360 - diff;
+						if (diff < 25) {
+							valid = false;
+							break;
+						}
+					}
+					// Check forbidden angle ranges
+					if (
+						(angle > 35 && angle < 55) ||
+						(angle > 125 && angle < 155) ||
+						(angle > 215 && angle < 235) ||
+						(angle > 305 && angle < 325)
+					) {
+						valid = false;
+					}
+				} while (!valid);
+				usedAngles.push(angle);
+				let dist = random(r * 0.70, r);
+				let bx = cx + dist * cos(angle);
+				let by = cy + dist * sin(angle);
+				trees.push(new tree(bx, by));
+			}
+		}
+	}
 	pulseMath();
 	background(-pulse.var, pulse.var - 25, pulse.var + 200);
 	push();
 	translate(viewport.x, viewport.y);
-	fill(255, 245, 190);
-	ellipse(center.x, center.y, 1000, 1000);
-	fill(52, 140, 49);
-	ellipse(center.x, center.y, 900, 900);
+	islandDraw(0);
 	fill(255, 245, 190);
 	textSize(50);
 	rect(center.x, center.y, 625, 375, 20);
 	fill(255);
 	textSize(100);
 	text("TankJack", center.x, center.y - 250);
+	push();
+	fill(255);
+	stroke(0);
+	strokeWeight(4);
+	textSize(30);
+	text("Version 0.0.1\n- Menu selection screen added\nPlans:\n- Add Wordle clone (Tankle)\n- Add a collision system\n- Add a racing game\n- Add dynamic island drawing mechanism", center.x, center.y);
+	pop();
+
+	//Gambling
+	islandDraw(1);
+	fill(255);
+	textSize(100);
+	text("Speculation 🎰", center.x- 1100, center.y - 1400);
+	fill(100);
+	textSize(75);
+	message(-1350, -1200, 400, 175, 20, aTank, "TankJack", function() {
+		currentPrompt = "";
+		promptIndex = 0;
+		stage = 3;
+		treads.length = 0;
+		viewport.x = 0;
+		viewport.y = -440;
+	});
+	textSize(50);
+	text("Closest to 21\nwins!", center.x - 950, center.y - 1200);
+	islandDraw(2);
+	fill(255);
+	textSize(100);
+	text("Morning ☀️", center.x + 1100, center.y - 1400);
+	fill(100);
+	textSize(75);
+	message(850, -1200, 400, 175, 20, aTank, "Tankle", function() {
+		currentPrompt = "";
+		promptIndex = 0;
+		stage = 3;
+		treads.length = 0;
+		viewport.x = 0;
+		viewport.y = -440;
+	});
+	textSize(50);
+	text("Can you guess\nthe word in\n6 tries?", center.x + 1250, center.y - 1200);
+	islandDraw(3);
+	fill(255);
+	textSize(75);
+	text("Bank of Tank", center.x - 1100, center.y + 700);
+	image(tellerImg, center.x - 1100, center.y + 900);
+	textSize(50);
+	text("Total Debt: $" + totalDebts + " Due Date: ", center.x - 1100, center.y + 1100);
+	textSize(50);
+	text("Press C and click on Repayment/Borrow\nto deal with your liabilities", center.x - 1100, center.y + 1300);
+	islandDraw(4);
+	fill(255);
+	textSize(100);
+	text("Racing 🏎️", center.x + 1100, center.y + 700);
+	fill(100);
+	textSize(75);
+	message(1200, 900, 400, 175, 20, aTank, "Rush", function() {
+		currentPrompt = "";
+		promptIndex = 0;
+		stage = 3;
+		treads.length = 0;
+		viewport.x = 0;
+		viewport.y = -440;
+	});
+	textSize(50);
+	text("A racing game!", center.x + 800, center.y + 900);
 	push();
 	fill(255);
 	stroke(0);
@@ -721,37 +1150,51 @@ function menu() {
 	*/
 	//The docks
 	push();
-	translate(center.x, center.y);
-	rotate(45);
-
-	for (let i = 0; i<4; i++) {
-		rotate(90 * i);
-		for (let i = 0; i < 30; i++) {
-			fill(boards[i][0], boards[i][1], boards[i][2]);
-			rect(0, 400 + (i * 25), 150, 25, 20);
-		}
+	translate(center.x, center.y + 450);
+	for (let i = 0; i < 15; i++) {
+		boards[i].draw();
 	}
 	pop();
-	// Draw the tank and its treads
+
+	fill(255);
+	text("Too far in debt?\n\nSurrender here", center.x, center.y + 900);
+	push();
+	translate(center.x, center.y);
+	rotate(45);
+	for (let i = 0; i<4; i++) {
+		rotate(90 * i);
+		translate(0, 400);
+		for (let i = 0; i < boards.length; i++) {
+			boards[i].draw();
+		}
+		translate(0, -400);
+	}
+	pop();
+	for (let i = 0; i < bushes.length; i++) {
+		bushes[i].draw();
+	}
 	for (let i = 0; i < bullets.length; i++) {
 		bullets[i].draw();
 	}
 	for (let i = 0; i < treads.length; i++) {
 		treads[i].draw();
 	}
+	for (let i = 0; i < trees.length; i++) {
+		trees[i].draw();
+	}
 	pop();
 
 	tankSpawn(aTank);
 
 	// Start the typing effect when the currentPrompt is not equal to prompts[0]
-	if (currentPrompt !== prompts[1]) {
+	if (currentPrompt !== prompts[0]) {
 		// Check if the prompt is fully displayed
-		if (promptIndex < prompts[1].length) {
+		if (promptIndex < prompts[0].length) {
 			// If not, continue adding characters to the currentPrompt
-			currentPrompt += prompts[1].charAt(promptIndex);
+			currentPrompt += prompts[0].charAt(promptIndex);
 			promptIndex++;
 		} else {
-			currentPrompt = prompts[1];
+			currentPrompt = prompts[0];
 		}	
 	}
 
@@ -789,6 +1232,7 @@ function treadDraw() {
 	pop();
 
 	tankSpawn(aTank);
+
 
 	if(keys["escape"]) {
 		stage = 2;
@@ -844,40 +1288,60 @@ function tankJack() {
 				let dealerScore = score(blackjack.dealer);
 
 				if (playerScore > 21 && dealerScore > 21) {
-					prompts[0] = "Both busted! It's a tie! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "Both busted! It's a tie! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet;
 					gameStarted = false;
 				} else if (playerScore === 21 && dealerScore !== 21) {
-					prompts[0] = "Blackjack! You win! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "Blackjack! You win! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet * 2;
 					gameStarted = false;
 				} else if (dealerScore === 21 && playerScore !== 21) {
-					prompts[0] = "Dealer has blackjack! Dealer wins! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "Dealer has blackjack! Dealer wins! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					gameStarted = false;
 				} else if (playerScore === 21 && dealerScore === 21) {
-					prompts[0] = "Both have blackjack! It's a tie! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "Both have blackjack! It's a tie! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet;
 					gameStarted = false;
 				} else if (playerScore > 21 && dealerScore <= 21) {
-					prompts[0] = "You busted! Dealer wins! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "You busted! Dealer wins! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					gameStarted = false;
 				} else if (dealerScore > 21 && playerScore <= 21) {
-					prompts[0] = "Dealer busted! You win! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "Dealer busted! You win! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet * 2;
 					gameStarted = false;
 				} else if (playerScore < dealerScore && dealerScore <= 21) {
-					prompts[0] = "The dealer wins! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "The dealer wins! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					gameStarted = false;
 				} else if (playerScore > dealerScore && playerScore <= 21) {
-					prompts[0] = "You win! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "You win! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet * 2;
 					gameStarted = false;
 				} else if (playerScore === dealerScore) {
-					prompts[0] = "It's a tie! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "It's a tie! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet;
 					gameStarted = false;
 				} else {
-					prompts[0] = "Unexpected outcome! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "Unexpected outcome! Dealer score: " + dealerScore + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					gameStarted = false;
 				}
 			} else {
@@ -893,13 +1357,17 @@ function tankJack() {
 			deal(blackjack.hand);
 			for(var i=0; i<blackjack.hand.length; i++) {
 				if (((blackjack.hand[i] === "J") || (blackjack.hand[i] === "K") || (blackjack.hand[i] === "Q")) && (score(blackjack.hand) === 21) && (blackjack.hand.length === 2)) {
-					prompts[0] = "Blackjack! Dealer score: " + score(blackjack.dealer) + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+					prompts[1] = "Blackjack! Dealer score: " + score(blackjack.dealer) + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 					money = money + gameBet * 2;
 					gameStarted = false;
 				}
 			}
 			if (score(blackjack.hand) > 21) {
-				prompts[0] = "You busted! Dealer score: " + score(blackjack.dealer) + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					currentPrompt = "";
+					promptIndex = 0;
+				prompts[1] = "You busted! Dealer score: " + score(blackjack.dealer) + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
 				gameStarted = false;
 			}
 		}
@@ -917,14 +1385,14 @@ function tankJack() {
 	tankSpawn(aTank);
 
 	// Start the typing effect when the currentPrompt is not equal to prompts[0]
-	if (currentPrompt !== prompts[0]) {
+	if (currentPrompt !== prompts[1]) {
 		// Check if the prompt is fully displayed
-		if (promptIndex < prompts[0].length) {
+		if (promptIndex < prompts[1].length) {
 			// If not, continue adding characters to the currentPrompt
-			currentPrompt += prompts[0].charAt(promptIndex);
+			currentPrompt += prompts[1].charAt(promptIndex);
 			promptIndex++;
 		} else {
-			currentPrompt = prompts[0];
+			currentPrompt = prompts[1];
 		}	
 	}
 
@@ -942,6 +1410,8 @@ function tankJack() {
 	}
 
 	if(keys["escape"]) {
+		currentPrompt = "";
+		promptIndex = 0;
 		stage = 2;
 		treads.length = 0;
 		viewport.x = 0;
@@ -961,31 +1431,23 @@ function debug() {
 	fill(255, 0, 0);
 	textSize(25);
 	//
-	text(viewport.x, mouseX + 40, mouseY - 30);
-	text((viewport.x > (-250 - 250/2)) && (viewport.x < (-250 +250/2)), mouseX + 40, mouseY + 5);
-	text((viewport.y > -200 + -(200/2)) && (viewport.y < -200 + (200/2)), mouseX + 40, mouseY + 35);
-	/*
+	text(blackjack.playingDeck.length, mouseX + 40, mouseY - 30);
+	text(blackjack.hand, mouseX + 40, mouseY + 5);
+	text(blackjack.dealer, mouseX + 40, mouseY + 35);
 	if (keyIsPressed) {
-		if(keys[73]) {	
-			viewport.y += 5;
-		}
-		if(keys[74]) {
-			viewport.x += 5;
-		}
-		if(keys[75]) {
+		if(keys["k"]) {	
 			viewport.y -= 5;
 		}
-		if(keys[76]) {
+		if(keys["j"]) {
+			viewport.x += 5;
+		}
+		if(keys["i"]) {
+			viewport.y += 5;
+		}
+		if(keys["l"]) {
 			viewport.x -= 5;
 		}
-		if(keys[89]) {
-			aTank.armor += 5;
-		}
-		if(keys[72]) {
-			aTank.armor -= 5;
-		}
 	}
-	*/
 }
 
 //Debug screen size: 1704, 959
@@ -1013,9 +1475,6 @@ function windowResized() {
 	commsWidth = center.x;
 
 	resizeCanvas(aWindowWidth, windowHeight);
-
-	//Reset treads due to rescaling bug, bandage
-	treads.length = 0;
 }
 
 function draw() {
