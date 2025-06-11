@@ -233,6 +233,10 @@ function setup() {
 	textStyle(BOLD);
 	imageMode(CENTER);
 	noStroke();
+
+	for (let i = 0; i < 30; i++) {
+		boards.push(new board(0, i * 25));
+	}
 }
 
 function keyPressed() {
@@ -297,18 +301,11 @@ function obfuscateHand(arr) {
 
 var points = [];
 
-
-
 function bush(x, y) {
     this.x = x;
     this.y = y;
     this.rotate = Math.random() * 360;
 	this.leafColor = random(-10, 10);
-	this.type = "" || "Bush";
-	
-	if (random() >= 0.75) {
-		this.type = "Rock";
-	}
 
     // Generate leaf points once
     this.leafPoints = [];
@@ -336,7 +333,6 @@ bush.prototype.draw = function() {
     }
     pop();
 };
-
 
 function tree(x, y) {
     this.x = x;
@@ -825,10 +821,121 @@ function tankSpawn(tankVar) {
 	}
 };
 
+function propSpawn(arr, object, islandArr, amount) {
+	if (arr.length < islandArr.length * 5) {
+		let r = (1000 / 2); // Use the same radius as your island
+		for (let i = 0; i < islandArr.length; i++) {
+			let cx = center.x + islandArr[i][2];
+			let cy = center.y + islandArr[i][3];
+			let usedAngles = [];
+			for (let j = 0; j < amount; j++) {
+				let angle;
+				let valid;
+				do {
+					angle = random(0, 360);
+					valid = true;
+					for (let k = 0; k < usedAngles.length; k++) {
+						// Check if angle is within 10 degrees of any used angle (account for wrap-around)
+						let diff = Math.abs(angle - usedAngles[k]);
+						if (diff > 180) diff = 360 - diff;
+						if (diff < 10) {
+							valid = false;
+							break;
+						}
+					}
+					// Also check forbidden ranges
+					if (
+						(angle > 35 && angle < 55) ||
+						(angle > 125 && angle < 155) ||
+						(angle > 215 && angle < 235) ||
+						(angle > 305 && angle < 325)
+					) {
+						valid = false;
+					}
+				} while (!valid);
+				usedAngles.push(angle);
+				let dist = random(r * 0.70, r);
+				let bx = cx + dist * cos(angle);
+				let by = cy + dist * sin(angle);
+				arr.push(new object(bx, by));
+			}
+		}
+	}
+}
+
+function promptSpawn(index) {
+	// Start the typing effect when the currentPrompt is not equal to prompts[0]
+	if (currentPrompt !== prompts[index]) {
+		// Check if the prompt is fully displayed
+		if (promptIndex < prompts[index].length) {
+			// If not, continue adding characters to the currentPrompt
+			currentPrompt += prompts[index].charAt(promptIndex);
+			promptIndex++;
+		} else {
+			currentPrompt = prompts[index];
+		}	
+	}
+
+	// Draw the current prompt text
+	strokeWeight(4);
+	stroke(0);
+	fill(255);
+	textSize(40);
+	text(currentPrompt, commsWidth, commsHeight);
+	strokeWeight(0);
+}
+
 var prompts = [
 	"Welcome to TankJack! Test your wits and intelligent wagering abilities\nin dealing with your skill and risk management.\nBeat the bank and make millions at the same time.\nDrive over floor buttons to interact and C for a hotmenu!",
 	"Welcome to TankJack!\nUse your WASD keys to tranverse around the world, drive over the\nfloor buttons to hit or stand, and press C to interact with your bet.\nFill out your bet and press start to begin!!"
 ];
+
+function fadeOut() {
+	// Fade in the screen, or moreso fade out of the previous screen
+	if (fade.intro > 0) {
+		fill(0, 0, 0, fade.intro);
+		rect(center.x, center.y, aWindowWidth, windowHeight);
+		fade.intro -= 2.5;
+	}
+}
+
+function changeScene(scene, x, y, button) {
+	if (button === undefined) {
+		fade.intro = 255;
+		currentPrompt = "";
+		promptIndex = 0;
+		stage = scene;
+		treads.length = 0;
+		viewport.x = x;
+		viewport.y = y;
+	} else {
+		if(keys["escape"]) {
+			fade.intro = 255;
+			currentPrompt = "";
+			promptIndex = 0;
+			stage = scene;
+			treads.length = 0;
+			viewport.x = x;
+			viewport.y = y;
+		}
+	}
+}
+
+function arrDraw(arrs, length) {
+	if(length === undefined) {
+		for (let i = 0; i < arrs.length; i++) {
+			for (let j = 0; j < arrs[i].length; j++) {
+				arrs[i][j].draw();
+			}
+		}
+	} else {
+		for (let i = 0; i < arrs.length; i++) {
+			for (let j = 0; j < length; j++) {
+				arrs[i][j].draw();
+			}
+		}
+	}
+}
 
 function intro() {
 	introVar.cubeRotate += 5;
@@ -916,11 +1023,7 @@ function intro() {
 	rectMode(CENTER);
 	pop();
 	
-	if (fade.intro > 0) {
-		fill(0, 0, 0, fade.intro);
-		rect(center.x, center.y, aWindowWidth, windowHeight);
-		fade.intro -= 2.5;
-	}
+	fadeOut();
 
 	fill(0, 0, 0, fade.out);
 	rect(center.x, center.y, aWindowWidth, windowHeight);
@@ -932,12 +1035,6 @@ function intro() {
 }
 
 function menu() {
-	if (boards.length < 30) {
-		for (let i = 0; i < 30; i++) {
-			boards.push(new board(0, i * 25));
-		}
-	}
-
 	if (points.length < 5) {
 		island(center.x, center.y);
 		island(center.x - 1100, center.y - 1100);
@@ -946,85 +1043,9 @@ function menu() {
 		island(center.x + 1100, center.y + 1100);
 	}
 
-	if (bushes.length < points.length * 5) {
-		let r = (1000 / 2); // Use the same radius as your island
-		for (let i = 0; i < points.length; i++) {
-			let cx = center.x + points[i][2];
-			let cy = center.y + points[i][3];
-			let usedAngles = [];
-			for (let j = 0; j < 15; j++) {
-				let angle;
-				let valid;
-				do {
-					angle = random(0, 360);
-					valid = true;
-					for (let k = 0; k < usedAngles.length; k++) {
-						// Check if angle is within 10 degrees of any used angle (account for wrap-around)
-						let diff = Math.abs(angle - usedAngles[k]);
-						if (diff > 180) diff = 360 - diff;
-						if (diff < 10) {
-							valid = false;
-							break;
-						}
-					}
-					// Also check forbidden ranges
-					if (
-						(angle > 35 && angle < 55) ||
-						(angle > 125 && angle < 155) ||
-						(angle > 215 && angle < 235) ||
-						(angle > 305 && angle < 325)
-					) {
-						valid = false;
-					}
-				} while (!valid);
-				usedAngles.push(angle);
-				let dist = random(r * 0.70, r);
-				let bx = cx + dist * cos(angle);
-				let by = cy + dist * sin(angle);
-				bushes.push(new bush(bx, by));
-			}
-		}
-	}
+	propSpawn(bushes, bush, points, 15);
+	propSpawn(trees, tree, points, 4);
 
-	if (trees.length < points.length) {
-		let r = (1000 / 2); // Use the same radius as your island
-		for (let i = 0; i < points.length; i++) {
-			let cx = center.x + points[i][2];
-			let cy = center.y + points[i][3];
-			let usedAngles = [];
-			for (let j = 0; j < 4; j++) {
-				let angle;
-				let valid;
-				do {
-					angle = random(0, 360);
-					valid = true;
-					// Check for minimum angle spacing
-					for (let k = 0; k < usedAngles.length; k++) {
-						let diff = Math.abs(angle - usedAngles[k]);
-						if (diff > 180) diff = 360 - diff;
-						if (diff < 25) {
-							valid = false;
-							break;
-						}
-					}
-					// Check forbidden angle ranges
-					if (
-						(angle > 35 && angle < 55) ||
-						(angle > 125 && angle < 155) ||
-						(angle > 215 && angle < 235) ||
-						(angle > 305 && angle < 325)
-					) {
-						valid = false;
-					}
-				} while (!valid);
-				usedAngles.push(angle);
-				let dist = random(r * 0.70, r);
-				let bx = cx + dist * cos(angle);
-				let by = cy + dist * sin(angle);
-				trees.push(new tree(bx, by));
-			}
-		}
-	}
 	pulseMath();
 	background(-pulse.var, pulse.var - 25, pulse.var + 200);
 	push();
@@ -1051,13 +1072,9 @@ function menu() {
 	text("Speculation 🎰", center.x- 1100, center.y - 1400);
 	fill(100);
 	textSize(75);
+
 	message(-1350, -1200, 400, 175, 20, aTank, "TankJack", function() {
-		currentPrompt = "";
-		promptIndex = 0;
-		stage = 3;
-		treads.length = 0;
-		viewport.x = 0;
-		viewport.y = -440;
+		changeScene(3, 0, -440);
 	});
 	textSize(50);
 	text("Closest to 21\nwins!", center.x - 950, center.y - 1200);
@@ -1068,12 +1085,7 @@ function menu() {
 	fill(100);
 	textSize(75);
 	message(850, -1200, 400, 175, 20, aTank, "Tankle", function() {
-		currentPrompt = "";
-		promptIndex = 0;
-		stage = 3;
-		treads.length = 0;
-		viewport.x = 0;
-		viewport.y = -440;
+		changeScene(3, 0, -440);
 	});
 	textSize(50);
 	text("Can you guess\nthe word in\n6 tries?", center.x + 1250, center.y - 1200);
@@ -1093,12 +1105,7 @@ function menu() {
 	fill(100);
 	textSize(75);
 	message(1200, 900, 400, 175, 20, aTank, "Rush", function() {
-		currentPrompt = "";
-		promptIndex = 0;
-		stage = 3;
-		treads.length = 0;
-		viewport.x = 0;
-		viewport.y = -440;
+		changeScene(3, 0, -440);
 	});
 	textSize(50);
 	text("A racing game!", center.x + 800, center.y + 900);
@@ -1109,51 +1116,10 @@ function menu() {
 	textSize(30);
 	text("Version 0.0.1\n- Menu selection screen added\nPlans:\n- Add Wordle clone (Tankle)\n- Add a collision system\n- Add a racing game\n- Add dynamic island drawing mechanism", center.x, center.y);
 	pop();
-	//TankJack button
-	/*
-	message(-250, -150, 250, 200, 20, aTank, "TankJack", function() {
-		stage = 3;
-		treads.length = 0;
-		viewport.x = 0;
-		viewport.y = -440;
-	});
-
-	fill(100);
-	textSize(50);
-	//Freestyle drawing button
-	message(250, -150, 250, 200, 20, aTank, "TreadDraw", function() {
-		stage = 4;
-		treads.length = 0;
-		viewport.x = 0;
-		viewport.y = -440;
-	});
-
-	fill(100);
-	textSize(50);
-	//Wordle clone button
-	message(250, 100, 250, 200, 20, aTank, "Tankle (WIP)", function() {
-		stage = 4;
-		treads.length = 0;
-		viewport.x = 0;
-		viewport.y = -440;
-	});
-
-	fill(100);
-	textSize(50);
-	//Wordle clone button
-	message(-250, 100, 250, 200, 20, aTank, "Bounty Hunting", function() {
-		stage = 4;
-		treads.length = 0;
-		viewport.x = 0;
-		viewport.y = -440;
-	});
-	*/
 	//The docks
 	push();
 	translate(center.x, center.y + 450);
-	for (let i = 0; i < 15; i++) {
-		boards[i].draw();
-	}
+	arrDraw([boards], 15)
 	pop();
 
 	fill(255);
@@ -1164,54 +1130,16 @@ function menu() {
 	for (let i = 0; i<4; i++) {
 		rotate(90 * i);
 		translate(0, 400);
-		for (let i = 0; i < boards.length; i++) {
-			boards[i].draw();
-		}
+		arrDraw([boards])
 		translate(0, -400);
 	}
 	pop();
-	for (let i = 0; i < bushes.length; i++) {
-		bushes[i].draw();
-	}
-	for (let i = 0; i < bullets.length; i++) {
-		bullets[i].draw();
-	}
-	for (let i = 0; i < treads.length; i++) {
-		treads[i].draw();
-	}
-	for (let i = 0; i < trees.length; i++) {
-		trees[i].draw();
-	}
+	arrDraw([bushes, bullets, treads, trees]);
 	pop();
 
 	tankSpawn(aTank);
-
-	// Start the typing effect when the currentPrompt is not equal to prompts[0]
-	if (currentPrompt !== prompts[0]) {
-		// Check if the prompt is fully displayed
-		if (promptIndex < prompts[0].length) {
-			// If not, continue adding characters to the currentPrompt
-			currentPrompt += prompts[0].charAt(promptIndex);
-			promptIndex++;
-		} else {
-			currentPrompt = prompts[0];
-		}	
-	}
-
-	// Draw the current prompt text
-	strokeWeight(4);
-	stroke(0);
-	fill(255);
-	textSize(40);
-	text(currentPrompt, commsWidth, commsHeight);
-	strokeWeight(0);
-
-	// Fade in the screen, or moreso fade out of the previous screen
-	if (fade.intro > 0) {
-		fill(0, 0, 0, fade.intro);
-		rect(center.x, center.y, aWindowWidth, windowHeight);
-		fade.intro -= 2.5;
-	}
+	promptSpawn(0);
+	fadeOut();
 }
 
 function treadDraw() {
@@ -1233,20 +1161,8 @@ function treadDraw() {
 
 	tankSpawn(aTank);
 
-
-	if(keys["escape"]) {
-		stage = 2;
-		treads.length = 0;
-		viewport.x = 0;
-		viewport.y = -440;	
-	}
-	
-	// Fade in the screen, or moreso fade out of the previous screen
-	if (fade.intro > 0) {
-		fill(0, 0, 0, fade.intro);
-		rect(center.x, center.y, aWindowWidth, windowHeight);
-		fade.intro -= 2.5;
-	}
+	changeScene(2, 0, -440, escape)
+	fadeOut();
 }
 
 function tankJack() {	
@@ -1384,46 +1300,14 @@ function tankJack() {
 
 	tankSpawn(aTank);
 
-	// Start the typing effect when the currentPrompt is not equal to prompts[0]
-	if (currentPrompt !== prompts[1]) {
-		// Check if the prompt is fully displayed
-		if (promptIndex < prompts[1].length) {
-			// If not, continue adding characters to the currentPrompt
-			currentPrompt += prompts[1].charAt(promptIndex);
-			promptIndex++;
-		} else {
-			currentPrompt = prompts[1];
-		}	
-	}
-
-	// Draw the current prompt text
-	strokeWeight(4);
-	stroke(0);
-	fill(255);
-	textSize(40);
-	text(currentPrompt, commsWidth, commsHeight);
-	strokeWeight(0);
+	promptSpawn(1);
 
 	// Slow the tank if out of bounds
 	if((viewport.x > 450) || (viewport.x < -450) || (viewport.y < -450) || (viewport.y > 450)) {
 		aTank.speed = 0;
 	}
-
-	if(keys["escape"]) {
-		currentPrompt = "";
-		promptIndex = 0;
-		stage = 2;
-		treads.length = 0;
-		viewport.x = 0;
-		viewport.y = -440;	
-	}
-
-	// Fade in the screen, or moreso fade out of the previous screen
-	if (fade.intro > 0) {
-		fill(0, 0, 0, fade.intro);
-		rect(center.x, center.y, aWindowWidth, windowHeight);
-		fade.intro -= 2.5;
-	}
+	changeScene(2, 0, -440, escape);
+	fadeOut();
 }
 
 //Outputs values to cursor position for debugging
