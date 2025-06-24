@@ -1,7 +1,43 @@
 disableFriendlyErrors = true;
 
-// Level, 1 = intro, 2 = Menu, 3 = TankJack!!
-var stage = 2;
+var debug = true;
+var paused = false;
+
+var muzzlInputs = [[]];
+var muzzlBoxes = [
+  [100, 100, 100, 100, 100],
+  [100, 100, 100, 100, 100],
+  [100, 100, 100, 100, 100],
+  [100, 100, 100, 100, 100],
+  [100, 100, 100, 100, 100],
+  [100, 100, 100, 100, 100]
+];
+var muzzlWord;
+
+// --- CONFIGURABLE MAP AND TILE SIZE ---
+const tileSize = 200;
+const collisionMap = [
+  ["W","W","W","W","W","W","W","W","W","W"],
+  ["W"," "," "," "," "," "," "," "," ","W"],
+  ["W"," ","W","W"," ","W","W","W"," ","W"],
+  ["W"," ","W"," "," "," "," ","W"," ","W"],
+  ["W"," ","W"," ","W","W"," ","W"," ","W"],
+  ["W"," "," "," "," "," "," "," "," ","W"],
+  ["W","W","W","W","W","W","W","W","W","W"]
+];
+
+
+function level() {
+	pulseMath();
+	background(-pulse.var, pulse.var - 25, pulse.var + 200);
+	push();
+    // Draw the collision map
+	
+	tankSpawn(aTank);
+}
+
+// Level, 1 = intro, 2 = Menu, 3 = TankJack, 4 = TreadDraw, 5 = Muzzl
+var stage = 1;
 var money = 100;
 var bet = 0;
 var gameBet = 0;
@@ -15,9 +51,14 @@ var blackjack = {
 //Dealer image
 var dealerImg;
 var tellerImg;
+
+const letters = [
+  "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"
+];
+
 function preload() {
-  dealerImg = loadImage('https://m.media-amazon.com/images/I/71lj9cp80dL.jpg');
-  tellerImg = loadImage('https://thumbs.dreamstime.com/b/bank-teller-wearing-glasses-white-shirt-smiling-assisting-customer-handing-currency-over-counter-office-bank-371626367.jpg');
+	dealerImg = loadImage('https://m.media-amazon.com/images/I/71lj9cp80dL.jpg');
+	tellerImg = loadImage('https://thumbs.dreamstime.com/b/bank-teller-wearing-glasses-white-shirt-smiling-assisting-customer-handing-currency-over-counter-office-bank-371626367.jpg');
 }
 
 var debtTime;
@@ -49,8 +90,8 @@ var center = {
 	y: 0
 }
 var viewport = {
-	x: 0,
-	y: -440
+	x: -1100,
+	y: -1100
 }
 
 //Game-wide variables
@@ -81,14 +122,14 @@ var aTank = {
 	bulletY: 600,
 	speed: 0,
 	speedDecay: 0.05,
-	acceleration: 0.75,
+	acceleration: 3,
 	rotate: 90,
 	turretRotateCopy: 0,
 	turretRotate: 0,
 	control: "wasd",
 	aimControl: "mouse",
 	firing: true,
-	speedMultipler: 0.75,
+	speedMultipler: 1,
 	speedCost: 200,
 	speedLevel: 1,
 	reloadRate: 10,
@@ -302,10 +343,10 @@ function obfuscateHand(arr) {
 var points = [];
 
 function bush(x, y) {
-    this.x = x;
-    this.y = y;
+    this.offsetX = x - center.x;
+    this.offsetY = y - center.y;
     this.rotate = Math.random() * 360;
-	this.leafColor = random(-10, 10);
+    this.leafColor = random(-10, 10);
 
     // Generate leaf points once
     this.leafPoints = [];
@@ -322,12 +363,9 @@ function bush(x, y) {
 
 bush.prototype.draw = function() {
     push();
-    translate(this.x, this.y);
+    translate(center.x + this.offsetX, center.y + this.offsetY);
     rotate(this.rotate);
-
-    // Draw leaves with a more saturated, lighter green and a dark outline
     for (let i = 0; i < this.leafPoints.length; i++) {
-        // Lighter, more yellow-green fill for contrast
         fill(40 + this.leafColor, 70 + this.leafColor, 20 + this.leafColor, 180);
         ellipse(this.leafPoints[i][0], this.leafPoints[i][1], 50, 50);
     }
@@ -335,6 +373,8 @@ bush.prototype.draw = function() {
 };
 
 function tree(x, y) {
+    this.offsetX = x - center.x;
+    this.offsetY = y - center.y;
     this.x = x;
     this.y = y;
     this.rotate = Math.random() * 360;
@@ -358,23 +398,20 @@ function tree(x, y) {
 
 tree.prototype.draw = function() {
     push();
-    translate(this.x, this.y);
+    translate(center.x + this.offsetX, center.y + this.offsetY);
     rotate(this.rotate);
-
     fill(194 + this.trunkColor, 100 + this.trunkColor, 98 + this.trunkColor);
     ellipse(this.trunkX, this.trunkY, 75, 75);
-
-    // Draw leaves with a more saturated, lighter green and a dark outline
     for (let i = 0; i < this.leafPoints.length; i++) {
-        // Lighter, more yellow-green fill for contrast
         fill(120 + this.leafColor, 200 + this.leafColor, 80 + this.leafColor, 100);
         ellipse(this.leafPoints[i][0], this.leafPoints[i][1], 200, 200);
     }
     pop();
 };
 
-function island(cx, cy) {
-    let r = (1000 / 2) - 200;
+
+function island(cx, cy, width = 1000) {
+    let r = (width / 2) - (200 * (width/1000)); 
     let bumps = 11;
     var irregularBump = Math.round(Math.random() * bumps);
     var irregularBump2 = Math.round(Math.random() * bumps);
@@ -389,7 +426,7 @@ function island(cx, cy) {
     points.push(islandPoints);
 }
 
-function islandDraw(idx) {
+function islandDraw(idx, radius = 750) {
     let island = points[idx];
     if (!island) return;
     let irregularBump = island[0];
@@ -402,10 +439,10 @@ function islandDraw(idx) {
         let py = cy + island[i][1];
         if (i - 4 === irregularBump || i - 4 === irregularBump2) {
             fill(255, 220, 120);
-            ellipse(px, py, 750, 750);
+            ellipse(px, py, radius, radius);
         } else {
             fill(255, 220, 120);
-            ellipse(px, py, 650, 650);
+            ellipse(px, py, radius - 100, radius - 100);
         }
     }
     for (let i = 4; i < island.length; i++) {
@@ -413,10 +450,10 @@ function islandDraw(idx) {
         let py = cy + island[i][1];
         if (i - 4 === irregularBump || i - 4 === irregularBump2) {
             fill(52, 140, 49);
-            ellipse(px, py, 650, 650);
+            ellipse(px, py, radius - 100, radius - 100);
         } else {
             fill(52, 140, 49);
-            ellipse(px, py, 550, 550);
+            ellipse(px, py, radius - 200, radius - 200);
         }
     }
 }
@@ -487,7 +524,7 @@ function tankSpawn(tankVar) {
 	}
 	
 		if (tankVar.control == "wasd") {
-			if (keyIsPressed) {
+			if (keyIsPressed && !paused) {
 				if(keys["a"]) {
 					if(tankVar.speed > (-2 * tankVar.speedMultipler)) {
 						tankVar.rotate -= 3;
@@ -522,7 +559,7 @@ function tankSpawn(tankVar) {
 				}				  
 			}
 		} else {
-			if (keyIsPressed) {
+			if (keyIsPressed && !paused) {
 				if(keys["arrowleft"]) {
 					if(tankVar.speed > (-2 * tankVar.speedMultipler)) {
 						tankVar.rotate -=3;
@@ -550,11 +587,7 @@ function tankSpawn(tankVar) {
 						tankVar.speed -= Math.sign(tankVar.speed) * tankVar.speedDecay;
 					}					  
 				}
-				if(tankVar.speed === (3 * tankVar.speedMultipler)) {
-					tankVar.speed = 3 * tankVar.speedMultipler;
-				} else if (tankVar.speed === (-3 * tankVar.speedMultipler)) {
-					tankVar.speed = 3 * tankVar.speedMultipler;
-				}
+
 			}
 		}
 	/*} else {
@@ -565,8 +598,31 @@ function tankSpawn(tankVar) {
 		}	
 	}*/
 
-	viewport.x += (cos(tankVar.rotate) * tankVar.speed);
-	viewport.y += (sin(tankVar.rotate) * tankVar.speed);
+	let angle = tankVar.rotate;
+	let dx = cos(angle) * tankVar.speed;
+	let dy = sin(angle) * tankVar.speed;
+
+	// The tank is always at the center of the screen (center.x, center.y)
+	let tankRadius = 30; // Adjust as needed for your tank's size
+
+	// Check the tank's front in the direction of movement
+	let tankWorldX = center.x + viewport.x;
+	let tankWorldY = center.y + viewport.y;
+	let checkX = tankWorldX + dx + tankRadius * Math.sign(dx);
+	let checkY = tankWorldY + dy + tankRadius * Math.sign(dy);
+	let collision = typeof level.isWallAt === "function" && level.isWallAt(checkX, checkY);
+
+	if(stage === 6) {
+		if (!collision) {
+			viewport.x += dx;
+			viewport.y += dy;
+		} else {
+			tankVar.speed = 0;
+		}
+	} else {
+		viewport.x += dx;
+		viewport.y += dy;
+	}
 
 	aTank.bulletX = (center.x) - viewport.x;
 	aTank.bulletY = (center.y) - viewport.y;
@@ -611,7 +667,7 @@ function tankSpawn(tankVar) {
 		text("Money", center.x, center.y - 100);
 		textSize(30);
 		text("$" + money, center.x, center.y - 70);
-		if ((stage === 3)) {
+		if (((stage === 3) || (stage === 5)) && (!gameStarted)) {
 			textSize(20);
 			text("Bet", center.x - 75, center.y - 25);
 			text("Adjust", center.x + 75, center.y - 25);
@@ -652,7 +708,7 @@ function tankSpawn(tankVar) {
 			tankVar.hotCircleSize = 0;
 		}
 
-		if (stage === 3) {
+		if ((stage === 3) || (stage == 5)) {
 			if (mouseIsPressed &&
 				((mouseX - (center.x) < 65)) &&
 				((mouseX - (center.x) > 45)) &&
@@ -681,21 +737,32 @@ function tankSpawn(tankVar) {
 				((mouseY - (center.y) < 95)) &&
 				((mouseY - (center.y) > 65))
 			) {
-				if (!gameStarted && stage === 3) {
+				if (!gameStarted && ((stage === 3) || (stage === 5))) {
 					if (money - bet >= 0) {
-						prompts[0] = "";
+						currentPrompt = "";
 						gameBet = bet;
 						gameStarted = true;
 						money = money - bet;
 						// Reset the dealer and player hands
-						blackjack.playingDeck = randomize(blackjack.masterDeck.slice());
-						blackjack.dealer = [];
-						blackjack.hand = [];
-						// Deal initial cards to both dealer and player
-						deal(blackjack.dealer);
-						deal(blackjack.dealer);
-						deal(blackjack.hand);
-						deal(blackjack.hand);
+						if (stage === 3) {
+							blackjack.playingDeck = randomize(blackjack.masterDeck.slice());
+							blackjack.dealer = [];
+							blackjack.hand = [];
+							// Deal initial cards to both dealer and player
+							deal(blackjack.dealer);
+							deal(blackjack.dealer);
+							deal(blackjack.hand);
+							deal(blackjack.hand);
+						} else {
+							for(var i = 0; i < 6; i++) {
+								for(var j = 0; j < 5; j++) {
+									muzzlBoxes[i][j] = 100;
+								}
+							}
+							muzzlInputs = [[]];
+							paused = true;
+							muzzlWord = realWords[Math.floor(Math.random() * realWords.length)];
+						}
 					}
 				}
 			}
@@ -820,10 +887,10 @@ function tankSpawn(tankVar) {
 		pop();
 	}
 };
-
-function propSpawn(arr, object, islandArr, amount) {
-	if (arr.length < islandArr.length * 5) {
-		let r = (1000 / 2); // Use the same radius as your island
+//propSpawn(bushes, bush, [0], 15, 1, 1250);
+function propSpawn(arr, object, islandArr, amount, islands, radius) {
+	if (arr.length < islandArr.length * islands) {
+		let r = (radius / 2); // Use the same radius as your island
 		for (let i = 0; i < islandArr.length; i++) {
 			let cx = center.x + islandArr[i][2];
 			let cy = center.y + islandArr[i][3];
@@ -854,7 +921,7 @@ function propSpawn(arr, object, islandArr, amount) {
 					}
 				} while (!valid);
 				usedAngles.push(angle);
-				let dist = random(r * 0.70, r);
+				let dist = Math.random() * (r - r * 0.95) + r * 0.95;
 				let bx = cx + dist * cos(angle);
 				let by = cy + dist * sin(angle);
 				arr.push(new object(bx, by));
@@ -887,7 +954,8 @@ function promptSpawn(index) {
 
 var prompts = [
 	"Welcome to TankJack! Test your wits and intelligent wagering abilities\nin dealing with your skill and risk management.\nBeat the bank and make millions at the same time.\nDrive over floor buttons to interact and C for a hotmenu!",
-	"Welcome to TankJack!\nUse your WASD keys to tranverse around the world, drive over the\nfloor buttons to hit or stand, and press C to interact with your bet.\nFill out your bet and press start to begin!!"
+	"Welcome to TankJack!\nUse your WASD keys to tranverse around the world, drive over the\nfloor buttons to hit or stand, and press C to interact with your bet.\nFill out your bet and press start to begin!!",
+	"Welcome to Muzzl! Put your money where your mind\nis by successfully guessing a 5 letter word through 6 guesses by betting in the C menu.\nUpon betting, movement will be disabled until you lose or win.\nAfter guessing 5 letters, you can press IJKL to move around"
 ];
 
 function fadeOut() {
@@ -899,39 +967,60 @@ function fadeOut() {
 	}
 }
 
-function changeScene(scene, x, y, button) {
-	if (button === undefined) {
-		fade.intro = 255;
-		currentPrompt = "";
-		promptIndex = 0;
-		stage = scene;
-		treads.length = 0;
-		viewport.x = x;
-		viewport.y = y;
-	} else {
-		if(keys["escape"]) {
+function changeScene(scene, x, y, button, func) {
+	if(!gameStarted) {
+		if (button === undefined) {
 			fade.intro = 255;
 			currentPrompt = "";
 			promptIndex = 0;
 			stage = scene;
+			bushes.length = 0;
 			treads.length = 0;
 			viewport.x = x;
 			viewport.y = y;
+		} else {
+			if(keys["escape"]) {
+				fade.intro = 255;
+				currentPrompt = "";
+				promptIndex = 0;
+				stage = scene;
+				bushes.length = 0;
+				treads.length = 0;
+				viewport.x = x;
+				viewport.y = y;
+				func();
+			}
 		}
 	}
 }
 
-function arrDraw(arrs, length) {
-	if(length === undefined) {
-		for (let i = 0; i < arrs.length; i++) {
-			for (let j = 0; j < arrs[i].length; j++) {
-				arrs[i][j].draw();
-			}
+function arrDraw(arrs, length, element, skip = 0) {
+	if (element === undefined) {
+        if(length === undefined) {
+            for (let i = 0; i < arrs.length; i++) {
+                for (let j = 0; j < arrs[i].length; j++) {
+                    arrs[i][j].draw();
+                }
+            }
+        } else {
+            for (let i = 0; i < arrs.length; i++) {
+                for (let j = 0; j < Math.min(length, arrs[i].length); j++) {
+                    arrs[i][j].draw();
+                }
+            }
 		}
 	} else {
-		for (let i = 0; i < arrs.length; i++) {
-			for (let j = 0; j < length; j++) {
-				arrs[i][j].draw();
+		if(length === undefined) {
+			for (let i = skip; i < element; i++) {
+				for (let j = skip; j < arrs[i].length; j++) {
+					arrs[i][j].draw();
+				}
+			}
+		} else {
+			for (let i = 0; i < element; i++) {
+				for (let j = 0; j < length; j++) {
+					arrs[i][j].draw();
+				}
 			}
 		}
 	}
@@ -1043,8 +1132,8 @@ function menu() {
 		island(center.x + 1100, center.y + 1100);
 	}
 
-	propSpawn(bushes, bush, points, 15);
-	propSpawn(trees, tree, points, 4);
+	propSpawn(bushes, bush, points, 15, 5, 1000);
+	propSpawn(trees, tree, points, 4, 5, 1000);
 
 	pulseMath();
 	background(-pulse.var, pulse.var - 25, pulse.var + 200);
@@ -1062,7 +1151,7 @@ function menu() {
 	stroke(0);
 	strokeWeight(4);
 	textSize(30);
-	text("Version 0.0.1\n- Menu selection screen added\nPlans:\n- Add Wordle clone (Tankle)\n- Add a collision system\n- Add a racing game\n- Add dynamic island drawing mechanism", center.x, center.y);
+	text("Version 0.0.2\n-Muzzl (Wordle clone) added\n-Island, bushes, tree generation\n\nPlans:\n- Add a collision system\n- Add a racing game", center.x, center.y);
 	pop();
 
 	//Gambling
@@ -1084,11 +1173,19 @@ function menu() {
 	text("Morning ☀️", center.x + 1100, center.y - 1400);
 	fill(100);
 	textSize(75);
-	message(850, -1200, 400, 175, 20, aTank, "Tankle", function() {
-		changeScene(3, 0, -440);
+	message(850, -1200, 400, 175, 20, aTank, "Muzzl", function() {
+		aTank.armor = 30;
+		changeScene(5, 0, 0);
+		
+	});
+	fill(100);
+	textSize(75);
+	message(1250, -1000, 400, 175, 20, aTank, "TreadDraw", function() {
+		changeScene(4, 0, -440);
 	});
 	textSize(50);
 	text("Can you guess\nthe word in\n6 tries?", center.x + 1250, center.y - 1200);
+	text("Free draw with\ntreads!", center.x + 850, center.y - 1000);
 	islandDraw(3);
 	fill(255);
 	textSize(75);
@@ -1104,18 +1201,11 @@ function menu() {
 	text("Racing 🏎️", center.x + 1100, center.y + 700);
 	fill(100);
 	textSize(75);
-	message(1200, 900, 400, 175, 20, aTank, "Rush", function() {
-		changeScene(3, 0, -440);
+	message(1200, 900, 400, 175, 20, aTank, "Treads", function() {
+		changeScene(6, -250, 100);
 	});
 	textSize(50);
 	text("A racing game!", center.x + 800, center.y + 900);
-	push();
-	fill(255);
-	stroke(0);
-	strokeWeight(4);
-	textSize(30);
-	text("Version 0.0.1\n- Menu selection screen added\nPlans:\n- Add Wordle clone (Tankle)\n- Add a collision system\n- Add a racing game\n- Add dynamic island drawing mechanism", center.x, center.y);
-	pop();
 	//The docks
 	push();
 	translate(center.x, center.y + 450);
@@ -1149,7 +1239,7 @@ function treadDraw() {
 	translate(viewport.x, viewport.y);
 	fill(100);
 	textSize(50);
-	text("Press Escape to leave at any time",center.x, center.y);
+	text("Press Escape to leave at any time\nPress IJKL for a coordinal speed boost!",center.x, center.y);
 	// Draw the tank and its treads
 	for (let i = 0; i < bullets.length; i++) {
 		bullets[i].draw();
@@ -1165,40 +1255,216 @@ function treadDraw() {
 	fadeOut();
 }
 
-function tankJack() {	
-	//Background pulse effect & island rendering
+function muzzlInitiate() {
+	push();
+	translate(center.x, center.y);
+	for (var j = 0; j < 6; j++) {
+		for(var i = 0; i < 5; i++) {
+			push();
+			if ((muzzlInputs.length-1 === j)) {
+				translate(-300, -490 + (j * 110));
+				fill(255);
+				rect(-20, 0, 50, 20);
+				triangle(-10, 25, -10, -25, 25, 0);
+			}
+			pop();
+			fill(muzzlBoxes[j][i]);
+			stroke(255);
+			strokeWeight(4);
+			rect(-220 + (i * 110), -490 + (j * 110), 100, 100);
+			stroke(255);
+			strokeWeight(0);
+			fill(255);
+			textSize(50);
+			let value = (muzzlInputs[j] && muzzlInputs[j][i]) ? muzzlInputs[j][i] : "";
+			text(value, -220 + (i * 110), -490 + (j * 110));
+		}
+	}
+
+	for(var i = 0; i < 10; i++) {
+		textSize(75);
+		fill(100, 100, 100);
+		rect(-382 + (i * 85), 200, 75, 100);
+		fill(255);
+		text(letters[i], -382 + (i * 85), 200);
+	}
+
+	for(var i = 0; i < 9; i++) {
+		if (i === 0) {
+			textSize(40);
+			fill(100, 100, 100);
+			rect(-380, 450, 150, 100);
+			fill(255);
+			text("ENTER", -380, 450);
+		} else if (i === 8) {
+			textSize(75);
+			fill(100, 100, 100);
+			rect(380, 450, 150, 100);
+			fill(255);
+			text("   ⌫", -340 + (i * 85), 450);
+		} else {
+			textSize(75);
+			fill(100, 100, 100);
+			rect(-340 + (i * 85), 450, 75, 100);
+			fill(255);
+			text(letters[i + 18], -340 + (i * 85), 450);
+		}
+		textSize(75);
+		fill(100, 100, 100);
+		rect(-340 + (i * 85), 325, 75, 100);
+		fill(255);
+		text(letters[i + 10], -340 + (i * 85), 325);
+	}
+	pop();
+}
+function muzzlLogic() {
+	if (keyIsPressed && paused) {
+		for (let i = 0; i < letters.length; i++) {
+			// Check both uppercase and lowercase keys
+			if ((keys[letters[i]] || keys[letters[i].toLowerCase()])) {
+				if (muzzlInputs.length === 0) muzzlInputs.push([]);
+				if (muzzlInputs[muzzlInputs.length-1].length < 5) {
+					muzzlInputs[muzzlInputs.length - 1].push(letters[i]);
+					keys[letters[i]] = false;
+					keys[letters[i].toLowerCase()] = false;
+				}
+			}
+		}
+		if (keys["enter"]) {
+			if (muzzlInputs[muzzlInputs.length-1].length === 5) {
+				let guess = muzzlInputs[muzzlInputs.length-1];
+				let targetWords = {};
+				for (var i = 0; i < guess.length; i++) {
+					targetWords[muzzlWord[i].toUpperCase()] = (targetWords[muzzlWord[i].toUpperCase()] || 0) + 1;
+				}
+				let guessJoined = muzzlInputs[muzzlInputs.length-1].join("");
+				if (guesses.includes(guessJoined.toLowerCase()) || realWords.includes(guessJoined.toLowerCase())) {
+					if (guessJoined.toLowerCase() === muzzlWord) {
+						for(var i = 0; i < 5; i++) {
+							muzzlBoxes[muzzlInputs.length-1][i] = "green";
+						}
+						paused = false;
+						gameStarted = false;
+						prompts[2] = "Tada! You got it!";
+						currentPrompt = "";
+						promptIndex = 0;
+						money = money + gameBet * 2;
+					} else {
+						for (var i = 0; i < guess.length; i++) {
+							if (guess[i].toUpperCase() === muzzlWord[i].toUpperCase()) {
+								muzzlBoxes[muzzlInputs.length-1][i] = "green";
+								targetWords[guess[i].toUpperCase()]--;
+							}
+						}
+						for (var i = 0; i < guess.length; i++) {
+							if (
+								muzzlBoxes[muzzlInputs.length-1][i] === 100 && // gray
+								targetWords[guess[i].toUpperCase()] > 0
+							) {
+								muzzlBoxes[muzzlInputs.length-1][i] = "gold";
+								targetWords[guess[i].toUpperCase()]--;
+							}
+						}
+						if (muzzlInputs.length === 6) {
+							paused = false;
+							gameStarted = false;
+							prompts[2] = "Unfortunate! The word was " + muzzlWord;
+							currentPrompt = "";
+							promptIndex = 0;
+						} else {
+							muzzlInputs.push([]);
+						}
+					}
+				}
+			}
+		}
+		if (keys["Backspace"] || keys["backspace"]) {
+			if (
+				muzzlInputs.length > 0 &&
+				muzzlInputs[muzzlInputs.length - 1].length > 0
+			) {
+				muzzlInputs[muzzlInputs.length - 1].pop();
+			}
+			keys["Backspace"] = false;
+			keys["backspace"] = false;
+		}
+	}
+	/*
+	//Store this message's coords in the messageFlags object to differentiate between messages for collision detection
+	var key = offsetX + ',' + offsetY;
+    if (messageFlags[key] === undefined) {
+		messageFlags[key] = false;
+	}
+
+	// Check if the viewport is within the bounds of the message rectangle
+	if ((viewport.x > (-offsetX - width/2)) && (viewport.x < (-offsetX +width/2)) && (viewport.y > -offsetY + -(height/2)) && (viewport.y < -offsetY + (height/2))) {
+		if (!messageFlags[key]) {
+			func();
+			messageFlags[key] = true;
+		}
+	} else {
+		messageFlags[key] = false;
+	}
+	*/
+}
+
+function muzzl() {
+	if (points.length < 6) {
+		island(center.x, center.y, 1250);
+	}
+	if (bushes.length < 180) {
+		propSpawn(bushes, bush, points, 15, 6, 1500);
+	}
+	/*
+	if (trees.length < 44) {
+		propSpawn(trees, tree, points, 4, 6, 2500);
+	}*/
 	pulseMath();
 	background(-pulse.var, pulse.var - 25, pulse.var + 200);
 	push();
 	translate(viewport.x, viewport.y);
-	fill(255, 245, 190);
-	rect(center.x, center.y, 1000, 1000, 20);
-	fill(52, 140, 49);
-	rect(center.x, center.y, 900, 900, 20);
-	fill(100, 100, 100);
-	fill(150);
-	translate(center.x, center.y - 250);
-	push();
-	scale(0.5);
-	image(dealerImg, 0, 0);
-	pop();
-	translate(-center.x, -center.y + 250);
+	islandDraw(5, 1000);
 
 	fill(88, 57, 39);
 	//The docks
 	for (let i = 0; i < 10; i++) {
-		rect(center.x, center.y + 375 + (i * 25), 150, 25, 20);
+		rect(center.x, center.y + 750 + (i * 25), 150, 25, 20);
 	}
 
 	fill(255);
-	textSize(50);
-	text("Dealer: " + obfuscateHand(blackjack.dealer).join(", "), center.x, center.y);
-	text("Tank: " + blackjack.hand.join(", ") + " Score: " + score(blackjack.hand), center.x, center.y + 50);
-
-	fill(100);
-	textSize(75);
+	textSize(100);
+	text("Muzzl", center.x, center.y - 600);
+	muzzlInitiate();
+	muzzlLogic();
+	/*
 	message(-250, 200, 250, 200, 20, aTank, "Stand", function() {
-		if (gameStarted) {
+		
+	});*/
+
+	arrDraw([bushes.slice(75, 90)]);
+	arrDraw([bullets]);
+	arrDraw([treads]);
+	//arrDraw([trees.slice(35, 39)]);
+	// Draw the tank and its treads
+	pop();
+
+	tankSpawn(aTank);
+
+	promptSpawn(2);
+
+	// Slow the tank if out of bounds
+	if((viewport.x > 450) || (viewport.x < -450) || (viewport.y < -450) || (viewport.y > 450)) {
+		aTank.speed = 0;
+	}
+	changeScene(2, 0, -440, escape, function() {
+		aTank.armor = 100;
+	});
+	fadeOut();
+}
+
+function tankJackLogic(button) {
+	if (gameStarted) {
+		if(button === "Stand") {
 			if (score(blackjack.dealer) > 16) {
 				let playerScore = score(blackjack.hand);
 				let dealerScore = score(blackjack.dealer);
@@ -1263,13 +1529,7 @@ function tankJack() {
 			} else {
 				deal(blackjack.dealer);
 			}
-		}
-	});
-
-	fill(100);
-	textSize(80);
-	message(250, 200, 250, 200, 20, aTank, "Hit", function() {
-		if (gameStarted) {
+		} else {
 			deal(blackjack.hand);
 			for(var i=0; i<blackjack.hand.length; i++) {
 				if (((blackjack.hand[i] === "J") || (blackjack.hand[i] === "K") || (blackjack.hand[i] === "Q")) && (score(blackjack.hand) === 21) && (blackjack.hand.length === 2)) {
@@ -1283,19 +1543,60 @@ function tankJack() {
 			if (score(blackjack.hand) > 21) {
 					currentPrompt = "";
 					promptIndex = 0;
-				prompts[1] = "You busted! Dealer score: " + score(blackjack.dealer) + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
-				gameStarted = false;
+					prompts[1] = "You busted! Dealer score: " + score(blackjack.dealer) + "\nReadjust your bet if needed\n and press Start in the betting menu to restart!";
+					gameStarted = false;
 			}
 		}
+	}
+}
+
+function tankJack() {	
+	if (bushes.length < 15) {
+		propSpawn(bushes, bush, points, 15, 1, 1000);
+	}
+	//Background pulse effect & island rendering
+	pulseMath();
+	background(-pulse.var, pulse.var - 25, pulse.var + 200);
+	push();
+	translate(viewport.x, viewport.y);
+	islandDraw(0);
+	fill(100, 100, 100);
+	fill(150);
+	translate(center.x, center.y - 250);
+	push();
+	scale(0.5);
+	image(dealerImg, 0, 0);
+	pop();
+	translate(-center.x, -center.y + 250);
+
+	fill(88, 57, 39);
+	//The docks
+	for (let i = 0; i < 10; i++) {
+		rect(center.x, center.y + 375 + (i * 25), 150, 25, 20);
+	}
+
+	fill(255);
+	textSize(50);
+	text("Dealer: " + obfuscateHand(blackjack.dealer).join(", "), center.x, center.y);
+	text("Tank: " + blackjack.hand.join(", ") + " Score: " + score(blackjack.hand), center.x, center.y + 50);
+
+	fill(100);
+	textSize(75);
+	message(-250, 200, 250, 200, 20, aTank, "Stand", function() {
+		tankJackLogic("Stand");
 	});
 
+	fill(100);
+	textSize(80);
+	message(250, 200, 250, 200, 20, aTank, "Hit", function() {
+		tankJackLogic("Hit");
+	});
+
+	arrDraw([bushes], 15);
+	arrDraw([bullets]);
+	arrDraw([treads]);
+	arrDraw([trees], 4);
 	// Draw the tank and its treads
-	for (let i = 0; i < bullets.length; i++) {
-		bullets[i].draw();
-	}
-	for (let i = 0; i < treads.length; i++) {
-		treads[i].draw();
-	}
 	pop();
 
 	tankSpawn(aTank);
@@ -1311,27 +1612,13 @@ function tankJack() {
 }
 
 //Outputs values to cursor position for debugging
-function debug() {
+function debugFunc() {
 	fill(255, 0, 0);
 	textSize(25);
 	//
-	text(blackjack.playingDeck.length, mouseX + 40, mouseY - 30);
-	text(blackjack.hand, mouseX + 40, mouseY + 5);
+	text(mouseX, mouseX + 40, mouseY - 30);
+	text(mouseY, mouseX + 40, mouseY + 5);
 	text(blackjack.dealer, mouseX + 40, mouseY + 35);
-	if (keyIsPressed) {
-		if(keys["k"]) {	
-			viewport.y -= 5;
-		}
-		if(keys["j"]) {
-			viewport.x += 5;
-		}
-		if(keys["i"]) {
-			viewport.y += 5;
-		}
-		if(keys["l"]) {
-			viewport.x -= 5;
-		}
-	}
 }
 
 //Debug screen size: 1704, 959
@@ -1374,10 +1661,63 @@ function draw() {
 			break;
 		case 4:
 			treadDraw();
+			if (keyIsPressed && !debug) {
+				if(keys["k"]) {	
+					viewport.y -= 5;
+				}
+				if(keys["j"]) {
+					viewport.x += 5;
+				}
+				if(keys["i"]) {
+					viewport.y += 5;
+				}
+				if(keys["l"]) {
+					viewport.x -= 5;
+				}
+			}
+			break;
+			
+		case 5:
+			muzzl();
+			break;
+		case 6:
+			level();
 			break;
 		default:
 			tankJack();
 			break;
 	}
-	debug();
+	if (debug) {
+		debugFunc();
+		if (keyIsPressed) {
+			if(keys["k"]) {	
+				viewport.y -= 5;
+			}
+			if(keys["j"]) {
+				viewport.x += 5;
+			}
+			if(keys["i"]) {
+				viewport.y += 5;
+			}
+			if(keys["l"]) {
+				viewport.x -= 5;
+			}
+		}
+	} else {
+		if (keyIsPressed && stage === 4) {
+			if(keys["k"]) {	
+				viewport.y -= 5;
+			}
+			if(keys["j"]) {
+				viewport.x += 5;
+			}
+			if(keys["i"]) {
+				viewport.y += 5;
+			}
+			if(keys["l"]) {
+				viewport.x -= 5;
+			}
+		}
+	}
+	
 }
