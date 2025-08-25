@@ -26,18 +26,37 @@ const collisionMap = [
   ["W","W","W","W","W","W","W","W","W","W"]
 ];
 
+function isWallAt(x, y) {
+    // Convert world x/y to map indices
+    let col = Math.floor(x / tileSize);
+    let row = Math.floor(y / tileSize);
+    if (
+        row < 0 || row >= collisionMap.length ||
+        col < 0 || col >= collisionMap[0].length
+    ) return true; // Treat out-of-bounds as wall
+    return collisionMap[row][col] === "W";
+}
 
 function level() {
 	pulseMath();
 	background(-pulse.var, pulse.var - 25, pulse.var + 200);
 	push();
     // Draw the collision map
-	
+	for (let row = 0; row < collisionMap.length; row++) {
+		for (let col = 0; col < collisionMap[row].length; col++) {
+			if (collisionMap[row][col] === "W") {
+				fill(80, 80, 80);
+				rect(col * tileSize, row * tileSize, tileSize, tileSize);
+			}
+		}
+	}
+
+	pop();
 	tankSpawn(aTank);
 }
 
 // Level, 1 = intro, 2 = Menu, 3 = TankJack, 4 = TreadDraw, 5 = Muzzl
-var stage = 1;
+var stage = 2;
 var money = 100;
 var bet = 0;
 var gameBet = 0;
@@ -90,8 +109,8 @@ var center = {
 	y: 0
 }
 var viewport = {
-	x: -1100,
-	y: -1100
+	x: 0,
+	y: 0
 }
 
 //Game-wide variables
@@ -122,7 +141,7 @@ var aTank = {
 	bulletY: 600,
 	speed: 0,
 	speedDecay: 0.05,
-	acceleration: 3,
+	acceleration: 2,
 	rotate: 90,
 	turretRotateCopy: 0,
 	turretRotate: 0,
@@ -598,31 +617,38 @@ function tankSpawn(tankVar) {
 		}	
 	}*/
 
+
+
 	let angle = tankVar.rotate;
+	viewport.x += cos(angle) * tankVar.speed;
+	viewport.y += sin(angle) * tankVar.speed;
+	
 	let dx = cos(angle) * tankVar.speed;
-	let dy = sin(angle) * tankVar.speed;
+    let dy = sin(angle) * tankVar.speed;
 
-	// The tank is always at the center of the screen (center.x, center.y)
-	let tankRadius = 30; // Adjust as needed for your tank's size
+    // Tank's center in world coordinates
+    let tankWorldX = center.x - viewport.x;
+    let tankWorldY = center.y - viewport.y;
 
-	// Check the tank's front in the direction of movement
-	let tankWorldX = center.x + viewport.x;
-	let tankWorldY = center.y + viewport.y;
-	let checkX = tankWorldX + dx + tankRadius * Math.sign(dx);
-	let checkY = tankWorldY + dy + tankRadius * Math.sign(dy);
-	let collision = typeof level.isWallAt === "function" && level.isWallAt(checkX, checkY);
+    // Check collision at the tank's front
+    let nextX = tankWorldX + dx;
+    let nextY = tankWorldY + dy;
+    let tankRadius = 30; // Adjust as needed
 
-	if(stage === 6) {
-		if (!collision) {
-			viewport.x += dx;
-			viewport.y += dy;
-		} else {
-			tankVar.speed = 0;
-		}
-	} else {
-		viewport.x += dx;
-		viewport.y += dy;
-	}
+    // Check four points around the tank's front for collision
+    let blocked = false;
+    for (let offset = -tankRadius; offset <= tankRadius; offset += tankRadius * 2) {
+        let checkX = nextX + cos(angle + 90) * offset;
+        let checkY = nextY + sin(angle + 90) * offset;
+        if (isWallAt(checkX, checkY)) {
+            blocked = true;
+            break;
+        }
+    }
+
+    
+	viewport.x += dx;
+	viewport.y += dy;
 
 	aTank.bulletX = (center.x) - viewport.x;
 	aTank.bulletY = (center.y) - viewport.y;
@@ -988,7 +1014,9 @@ function changeScene(scene, x, y, button, func) {
 				treads.length = 0;
 				viewport.x = x;
 				viewport.y = y;
-				func();
+				if (func !== undefined) {
+					func();
+				}
 			}
 		}
 	}
@@ -1615,10 +1643,11 @@ function tankJack() {
 function debugFunc() {
 	fill(255, 0, 0);
 	textSize(25);
-	//
+	/*
 	text(mouseX, mouseX + 40, mouseY - 30);
 	text(mouseY, mouseX + 40, mouseY + 5);
 	text(blackjack.dealer, mouseX + 40, mouseY + 35);
+	*/
 }
 
 //Debug screen size: 1704, 959
