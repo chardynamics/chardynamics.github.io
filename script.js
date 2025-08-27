@@ -1229,8 +1229,8 @@ function menu() {
 	text("Racing 🏎️", center.x + 1100, center.y + 700);
 	fill(100);
 	textSize(75);
-	message(1200, 900, 400, 175, 20, aTank, "Treads", function() {
-		changeScene(6, -250, 100);
+	message(1200, 900, 400, 175, 20, aTank, "Treads (Not working)", function() {
+		//changeScene(6, -250, 100);
 	});
 	textSize(50);
 	text("A racing game!", center.x + 800, center.y + 900);
